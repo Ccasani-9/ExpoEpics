@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard — Secretaría{% endblock %}
+
+{% block content %}
+{% if not evento %}
+  <div class="alert alert-warning">No tienes eventos asignados.</div>
+{% else %}
+
+<!-- Métricas -->
+<div class="metrics-grid">
+  <div class="metric-card">
+    <div class="metric-label">Estudiantes inscritos</div>
+    <div class="metric-value">{{ metricas.participantes }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Grupos participantes</div>
+    <div class="metric-value">{{ metricas.grupos }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Proyectos registrados</div>
+    <div class="metric-value">{{ metricas.proyectos }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">% Inscripción</div>
+    <div class="metric-value">{{ metricas.pct_inscripcion }}%</div>
+    <div class="progress-wrap" style="margin-top:8px;">
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" style="width:{{ metricas.pct_inscripcion }}%"></div>
+      </div>
+    </div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">% Tareas completadas</div>
+    <div class="metric-value">{{ metricas.pct_tareas }}%</div>
+    <div class="progress-wrap" style="margin-top:8px;">
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill green" style="width:{{ metricas.pct_tareas }}%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Evento info -->
+<div class="card mb-24" style="margin-bottom:20px;">
+  <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+    <div style="display:flex; gap:24px; flex-wrap:wrap;">
+      <div>
+        <div class="detail-label">Fecha del evento</div>
+        <div class="detail-value" style="font-size:18px; font-weight:700;">
+          {{ evento.fecha.strftime('%d de %B de %Y') if evento.fecha else '' }}
+        </div>
+      </div>
+      <div>
+        <div class="detail-label">Horario</div>
+        <div class="detail-value">{{ evento.hora_inicio }} — {{ evento.hora_fin }}</div>
+      </div>
+    </div>
+    <a href="{{ url_for('secretaria.tareas') }}" class="btn btn-primary">
+      <i class="ti ti-checklist"></i> Ver mis tareas
+    </a>
+  </div>
+</div>
+
+<!-- Resumen de tareas -->
+<div class="card mb-24" style="margin-bottom:20px;">
+  <div class="section-header">
+    <div class="section-title">Resumen de tareas</div>
+    <a href="{{ url_for('secretaria.tarea_nueva') }}" class="btn btn-primary btn-sm">
+      <i class="ti ti-plus"></i> Nueva tarea
+    </a>
+  </div>
+  <div class="three-col" style="margin-bottom:14px;">
+    {% set completado = tareas_resumen | selectattr('estado', 'equalto', 'Completado') | list %}
+    {% set en_proceso = tareas_resumen | selectattr('estado', 'equalto', 'En proceso') | list %}
+    {% set pendiente  = tareas_resumen | selectattr('estado', 'equalto', 'Pendiente')  | list %}
+    <div style="text-align:center;">
+      <span class="dot dot-success"></span>
+      <span style="font-weight:700;">{{ completado[0].cnt if completado else 0 }}</span>
+      <span class="text-muted text-sm"> Completadas</span>
+    </div>
+    <div style="text-align:center;">
+      <span class="dot dot-warn"></span>
+      <span style="font-weight:700;">{{ en_proceso[0].cnt if en_proceso else 0 }}</span>
+      <span class="text-muted text-sm"> En proceso</span>
+    </div>
+    <div style="text-align:center;">
+      <span class="dot dot-danger"></span>
+      <span style="font-weight:700;">{{ pendiente[0].cnt if pendiente else 0 }}</span>
+      <span class="text-muted text-sm"> Pendientes</span>
+    </div>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span>Progreso de tareas</span>
+      <span>{{ metricas.pct_tareas }}%</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill green" style="width:{{ metricas.pct_tareas }}%"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Gráficos -->
+<div class="charts-grid mb-24" style="margin-bottom:20px;">
+  <div class="chart-card">
+    <div class="chart-title">Proyectos por curso</div>
+    <div class="chart-container"><canvas id="chartCursos"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">Estado de proyectos</div>
+    <div class="chart-container"><canvas id="chartEstados"></canvas></div>
+  </div>
+</div>
+
+<!-- Proyectos recientes -->
+<div class="card">
+  <div class="card-title">Proyectos recientes</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Proyecto</th><th>Curso</th><th>Mesa</th><th>Estado</th></tr>
+      </thead>
+      <tbody>
+        {% for p in proyectos_recientes %}
+        <tr>
+          <td class="text-bold">{{ p.nombre_proyecto }}</td>
+          <td class="text-muted">{{ p.nombre_curso }}</td>
+          <td>Mesa {{ p.num_mesa }}</td>
+          <td>
+            {% if p.estado == 'Aprobado' %}<span class="badge badge-success">{{ p.estado }}</span>
+            {% elif p.estado == 'En revisión' %}<span class="badge badge-warn">{{ p.estado }}</span>
+            {% elif p.estado == 'Rechazado' %}<span class="badge badge-danger">{{ p.estado }}</span>
+            {% else %}<span class="badge badge-gray">{{ p.estado }}</span>{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="text-muted" style="text-align:center;">Sin proyectos.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  renderDashboardCharts({{ chart_cursos | safe }}, {{ chart_estados | safe }});
+</script>
+{% endblock %}

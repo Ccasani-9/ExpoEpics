@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Historial{% endblock %}
+{% block page_title %}Historial de Evaluaciones{% endblock %}
+
+{% block content %}
+<div class="section-header mb-16" style="margin-bottom:18px;">
+  <div class="section-title">Mis evaluaciones</div>
+</div>
+
+{% if not evaluaciones %}
+  <div class="alert alert-info">No has realizado ninguna evaluación aún.</div>
+{% else %}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Proyecto</th>
+        <th>Curso</th>
+        <th>Mesa</th>
+        <th>Calificación</th>
+        <th>Fecha</th>
+        <th>Estado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ev in evaluaciones %}
+      <tr>
+        <td class="text-bold">{{ ev.nombre_proyecto }}</td>
+        <td class="text-muted">{{ ev.nombre_curso }}</td>
+        <td>Mesa {{ ev.num_mesa }}</td>
+        <td>
+          {% if ev.calificacion == 'Excelente' %}
+            <span class="badge badge-success">{{ ev.calificacion }}</span>
+          {% elif ev.calificacion in ('Muy buena','Buena') %}
+            <span class="badge badge-blue">{{ ev.calificacion }}</span>
+          {% elif ev.calificacion == 'Regular' %}
+            <span class="badge badge-warn">{{ ev.calificacion }}</span>
+          {% else %}
+            <span class="badge badge-danger">{{ ev.calificacion }}</span>
+          {% endif %}
+        </td>
+        <td class="text-muted text-sm">{{ ev.fecha_evaluacion }}</td>
+        <td>
+          {% if ev.finalizada %}
+            <span class="badge badge-success">🔒 Finalizada</span>
+          {% else %}
+            <span class="badge badge-warn">Borrador</span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="{{ url_for('juez.evaluar', id_proyecto=ev.id_proyecto) }}"
+             class="btn btn-outline btn-sm">
+            <i class="ti ti-eye"></i>
+            {% if ev.finalizada %}Ver{% else %}Editar{% endif %}
+          </a>
+          {% if not ev.finalizada %}
+            <form method="POST"
+                  action="{{ url_for('juez.finalizar', id_evaluacion=ev.id_evaluacion) }}"
+                  style="display:inline;"
+                  data-confirm="¿Finalizar esta evaluación? No podrá editarse.">
+              <button type="submit" class="btn btn-primary btn-sm">
+                <i class="ti ti-lock"></i> Finalizar
+              </button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

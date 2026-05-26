@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Evento{% endblock %}
+{% block page_title %}Información del Evento{% endblock %}
+
+{% block content %}
+{% if not evento %}
+  <div class="alert alert-warning">No hay evento asignado.</div>
+{% else %}
+
+{% if dias_restantes is not none %}
+  {% if dias_restantes > 3 %}
+    <div class="alert alert-success">
+      <i class="ti ti-calendar"></i>
+      ¡Quedan <strong>{{ dias_restantes }} días</strong> para la ExpoEpics!
+    </div>
+  {% elif dias_restantes >= 0 %}
+    <div class="alert alert-danger">
+      <i class="ti ti-alarm"></i>
+      <strong>¡{{ dias_restantes }} día(s) para el evento!</strong> Asegúrate de tener todo listo.
+    </div>
+  {% else %}
+    <div class="alert alert-info">El evento ya se realizó.</div>
+  {% endif %}
+{% endif %}
+
+<div class="event-grid">
+  <!-- Card del evento -->
+  <div class="card">
+    <div class="card-title">📅 Datos del evento</div>
+    <div class="event-date">
+      {{ evento.fecha.strftime('%d') }} {{ evento.fecha.strftime('%b').upper() }}
+    </div>
+    <div class="event-detail" style="margin-top:10px;">
+      <strong>{{ evento.fecha.strftime('%A %d de %B de %Y') }}</strong>
+    </div>
+    <hr class="divider">
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <div>
+        <div class="detail-label">Horario</div>
+        <div class="detail-value">{{ evento.hora_inicio }} — {{ evento.hora_fin }}</div>
+      </div>
+      <div>
+        <div class="detail-label">Edición</div>
+        <div class="detail-value">Ciclo {{ evento.ciclo }} · Año {{ evento.anio }}</div>
+      </div>
+      {% if dias_restantes is not none and dias_restantes >= 0 %}
+      <div>
+        <div class="detail-label">Días restantes</div>
+        <div class="detail-value" style="font-size:24px; font-weight:800;
+          color: {% if dias_restantes > 3 %}var(--success){% else %}var(--danger){% endif %};">
+          {{ dias_restantes }} día(s)
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Card del espacio -->
+  <div class="card">
+    <div class="card-title">🪑 Tu espacio asignado</div>
+    {% if espacio %}
+      <div class="mesa-number">{{ espacio.num_mesa }}</div>
+      <div class="mesa-location" style="font-size:16px; font-weight:600; margin-top:6px;">
+        Mesa {{ espacio.num_mesa }}
+      </div>
+      <div class="mesa-location">{{ espacio.ubicacion }}</div>
+      <hr class="divider">
+      <div class="alert alert-info" style="font-size:12.5px; margin-bottom:0;">
+        <i class="ti ti-map-pin"></i>
+        Tu grupo estará ubicado en la <strong>Mesa {{ espacio.num_mesa }}</strong>
+        en <strong>{{ espacio.ubicacion }}</strong>.
+      </div>
+    {% else %}
+      <div class="alert alert-warning">No tienes espacio asignado aún.</div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

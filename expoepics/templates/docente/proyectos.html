@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Proyectos{% endblock %}
+{% block page_title %}Proyectos del Evento{% endblock %}
+
+{% block content %}
+<div class="section-header mb-16" style="margin-bottom:18px;">
+  <div>
+    <div class="section-title">Todos los proyectos</div>
+    <div class="section-subtitle">
+      {% if evento %}{{ evento.fecha.strftime('%d/%m/%Y') }} · {{ proyectos | length }} proyecto(s){% endif %}
+    </div>
+  </div>
+</div>
+
+{% if not proyectos %}
+  <div class="alert alert-info">No hay proyectos registrados en el evento actual.</div>
+{% else %}
+<div class="project-cards">
+  {% for p in proyectos %}
+  <a href="{{ url_for('docente.proyecto_detalle', id_proyecto=p.id_proyecto) }}"
+     style="text-decoration:none; color:inherit;">
+    <div class="project-card">
+      <div class="project-card-header">
+        <div>
+          <div class="project-card-title">{{ p.nombre_proyecto }}</div>
+          <div class="project-card-meta">
+            <span><i class="ti ti-book"></i> {{ p.nombre_curso }}</span>
+            <span><i class="ti ti-users"></i> {{ p.num_integrantes }} integrante(s)</span>
+            <span><i class="ti ti-table"></i> Mesa {{ p.num_mesa }} — {{ p.ubicacion }}</span>
+            <span><i class="ti ti-hash"></i> Grupo {{ p.id_grupo }}</span>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+          <div class="color-dot" style="width:10px;height:10px;border-radius:50%;background:{{ p.color }};"></div>
+        </div>
+      </div>
+      <div class="project-card-badges">
+        <!-- Estado del grupo -->
+        {% if p.estado_grupo == 'Seleccionado' %}
+          <span class="badge badge-success">Grupo: {{ p.estado_grupo }}</span>
+        {% elif p.estado_grupo == 'Postulado' %}
+          <span class="badge badge-warn">Grupo: {{ p.estado_grupo }}</span>
+        {% elif p.estado_grupo == 'Presentó' %}
+          <span class="badge badge-blue">Grupo: {{ p.estado_grupo }}</span>
+        {% else %}
+          <span class="badge badge-gray">Grupo: {{ p.estado_grupo }}</span>
+        {% endif %}
+        <!-- Estado del proyecto -->
+        {% if p.estado_proyecto == 'Aprobado' %}
+          <span class="badge badge-success">{{ p.estado_proyecto }}</span>
+        {% elif p.estado_proyecto == 'En revisión' %}
+          <span class="badge badge-warn">{{ p.estado_proyecto }}</span>
+        {% elif p.estado_proyecto == 'Rechazado' %}
+          <span class="badge badge-danger">{{ p.estado_proyecto }}</span>
+        {% elif p.estado_proyecto == 'Presentado' %}
+          <span class="badge badge-info">{{ p.estado_proyecto }}</span>
+        {% else %}
+          <span class="badge badge-gray">{{ p.estado_proyecto }}</span>
+        {% endif %}
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

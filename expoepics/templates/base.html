@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ExpoEpics{% endblock %} — ExpoEpics USMP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+<div class="layout">
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">⚡</div>
+      <div>
+        <div class="brand-name">ExpoEpics</div>
+        <div class="brand-sub">
+          {% if session.role == 'docente' %}Portal Docente
+          {% elif session.role == 'secretaria' %}Portal Secretaría
+          {% elif session.role == 'estudiante' %}Portal Estudiante
+          {% elif session.role == 'juez' %}Portal Juez
+          {% elif session.role == 'marketing' %}Portal Marketing
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      {% if session.role == 'docente' %}
+        <a href="{{ url_for('docente.dashboard') }}"
+           class="nav-item {% if request.endpoint == 'docente.dashboard' %}active{% endif %}">
+          <i class="ti ti-layout-dashboard"></i> Dashboard
+        </a>
+        <a href="{{ url_for('docente.proyectos') }}"
+           class="nav-item {% if 'proyecto' in (request.endpoint or '') and request.endpoint != 'docente.dashboard' %}active{% endif %}">
+          <i class="ti ti-folder"></i> Proyectos
+        </a>
+        <a href="{{ url_for('docente.evaluaciones') }}"
+           class="nav-item {% if request.endpoint == 'docente.evaluaciones' %}active{% endif %}">
+          <i class="ti ti-star"></i> Evaluaciones
+        </a>
+        <a href="{{ url_for('docente.cuenta') }}"
+           class="nav-item {% if request.endpoint == 'docente.cuenta' %}active{% endif %}">
+          <i class="ti ti-user-circle"></i> Mi Cuenta
+        </a>
+
+      {% elif session.role == 'secretaria' %}
+        <a href="{{ url_for('secretaria.dashboard') }}"
+           class="nav-item {% if request.endpoint == 'secretaria.dashboard' %}active{% endif %}">
+          <i class="ti ti-layout-dashboard"></i> Dashboard
+        </a>
+        <a href="{{ url_for('secretaria.tareas') }}"
+           class="nav-item {% if 'tarea' in (request.endpoint or '') %}active{% endif %}">
+          <i class="ti ti-checklist"></i> Tareas
+        </a>
+        <a href="{{ url_for('secretaria.cuenta') }}"
+           class="nav-item {% if request.endpoint == 'secretaria.cuenta' %}active{% endif %}">
+          <i class="ti ti-user-circle"></i> Mi Cuenta
+        </a>
+
+      {% elif session.role == 'estudiante' %}
+        <a href="{{ url_for('estudiante.proyecto') }}"
+           class="nav-item {% if 'proyecto' in (request.endpoint or '') %}active{% endif %}">
+          <i class="ti ti-folder"></i> Mi Proyecto
+        </a>
+        <a href="{{ url_for('estudiante.evento') }}"
+           class="nav-item {% if request.endpoint == 'estudiante.evento' %}active{% endif %}">
+          <i class="ti ti-calendar-event"></i> Evento
+        </a>
+        <a href="{{ url_for('estudiante.evaluaciones') }}"
+           class="nav-item {% if request.endpoint == 'estudiante.evaluaciones' %}active{% endif %}">
+          <i class="ti ti-star"></i> Evaluaciones
+        </a>
+        <a href="{{ url_for('estudiante.cuenta') }}"
+           class="nav-item {% if request.endpoint == 'estudiante.cuenta' %}active{% endif %}">
+          <i class="ti ti-user-circle"></i> Mi Cuenta
+        </a>
+
+      {% elif session.role == 'juez' %}
+        <a href="{{ url_for('juez.proyectos') }}"
+           class="nav-item {% if request.endpoint in ('juez.proyectos','juez.evaluar') %}active{% endif %}">
+          <i class="ti ti-clipboard-list"></i> A Evaluar
+        </a>
+        <a href="{{ url_for('juez.historial') }}"
+           class="nav-item {% if request.endpoint == 'juez.historial' %}active{% endif %}">
+          <i class="ti ti-history"></i> Historial
+        </a>
+        <a href="{{ url_for('juez.cuenta') }}"
+           class="nav-item {% if request.endpoint == 'juez.cuenta' %}active{% endif %}">
+          <i class="ti ti-user-circle"></i> Mi Cuenta
+        </a>
+
+      {% elif session.role == 'marketing' %}
+        <a href="{{ url_for('marketing.ranking') }}"
+           class="nav-item {% if request.endpoint == 'marketing.ranking' %}active{% endif %}">
+          <i class="ti ti-trophy"></i> Ranking
+        </a>
+        <a href="{{ url_for('marketing.proyectos') }}"
+           class="nav-item {% if request.endpoint == 'marketing.proyectos' %}active{% endif %}">
+          <i class="ti ti-folder"></i> Proyectos
+        </a>
+        <a href="{{ url_for('marketing.cuenta') }}"
+           class="nav-item {% if request.endpoint == 'marketing.cuenta' %}active{% endif %}">
+          <i class="ti ti-user-circle"></i> Mi Cuenta
+        </a>
+      {% endif %}
+    </nav>
+
+    <div class="sidebar-user">
+      <div class="user-avatar">{{ session.nombre[0] | upper }}{{ session.apellido[0] | upper }}</div>
+      <div>
+        <div class="user-name">{{ session.nombre }} {{ session.apellido }}</div>
+        <div class="user-role">{{ session.role | title }}</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══ MAIN ══ -->
+  <div class="main">
+    <header class="topbar">
+      <h1 class="page-title">{% block page_title %}ExpoEpics{% endblock %}</h1>
+      <div class="topbar-actions">
+        <span class="badge badge-blue" style="font-size:12px; padding:5px 10px;">
+          <i class="ti ti-calendar-event"></i> ExpoEpics 2026 — Ciclo 1
+        </span>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline btn-sm">
+          <i class="ti ti-logout"></i> Salir
+        </a>
+      </div>
+    </header>
+
+    <div class="content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for cat, msg in messages %}
+            <div class="alert alert-{{ cat }}">{{ msg }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

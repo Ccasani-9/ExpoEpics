@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Iniciar sesión — ExpoEpics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body class="login-page">
+
+<div class="login-container">
+  <div class="login-brand">
+    <div class="login-logo">Expo<span>Epics</span></div>
+    <div class="login-tagline">Sistema de Gestión del Evento Académico</div>
+    <div class="login-tagline">Universidad de San Martín de Porres — USMP · 2026</div>
+  </div>
+
+  <div class="login-card">
+    <!-- Tabs -->
+    <div class="login-tabs">
+      <button class="tab-btn" data-tab="docente">Docente / Secr.</button>
+      <button class="tab-btn" data-tab="estudiante">Estudiante</button>
+      <button class="tab-btn" data-tab="juez">Juez / Marketing</button>
+    </div>
+
+    <!-- Error -->
+    {% if error %}
+      <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <!-- Form -->
+    <form method="POST" action="{{ url_for('auth.login') }}">
+      <input type="hidden" name="tab" id="selected-tab" value="{{ tab or 'docente' }}">
+
+      <div class="form-group">
+        <label for="correo">Correo institucional</label>
+        <input type="email" id="correo" name="correo"
+               placeholder="usuario@usmp.edu.pe" required autocomplete="email">
+      </div>
+
+      <div class="form-group">
+        <label for="contrasena">Contraseña</label>
+        <input type="password" id="contrasena" name="contrasena"
+               placeholder="••••••••" required autocomplete="current-password">
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full" style="margin-top:4px;">
+        Iniciar sesión
+      </button>
+    </form>
+
+    <!-- Credenciales de prueba -->
+    <div class="test-creds">
+      <div class="test-creds-title">Usuarios de prueba</div>
+
+      <div id="creds-docente">
+        <div class="cred-item">
+          <span class="cred-role">Docente</span>
+          <code>r.garcia@usmp.edu.pe</code> / <code>docente123</code>
+        </div>
+        <div class="cred-item">
+          <span class="cred-role">Docente 2</span>
+          <code>j.mendoza@usmp.edu.pe</code> / <code>docente123</code>
+        </div>
+        <div class="cred-item">
+          <span class="cred-role">Secretaria</span>
+          <code>v.huanca@usmp.edu.pe</code> / <code>secre123</code>
+        </div>
+      </div>
+
+      <div id="creds-estudiante" class="hidden">
+        <div class="cred-item">
+          <span class="cred-role">Paul (temp)</span>
+          <code>p.anampa@usmp.edu.pe</code> / <code>est123</code>
+        </div>
+        <div class="cred-item">
+          <span class="cred-role">Renzo</span>
+          <code>r.ccasani@usmp.edu.pe</code> / <code>est123</code>
+        </div>
+        <div class="cred-item">
+          <span class="cred-role">Aaron</span>
+          <code>a.mondalgo@usmp.edu.pe</code> / <code>est123</code>
+        </div>
+        <div class="cred-item">
+          <span class="cred-role">Jorge</span>
+          <code>j.ortiz@usmp.edu.pe</code> / <code>est123</code>
+        </div>
+        <div class="cred-item">
+          <span class="cred-role">María (líder)</span>
+          <code>m.lopez@usmp.edu.pe</code> / <code>est123</code>
+        </div>
+        <div class="cred-item">
+          <span class="cred-role">Luis</span>
+          <code>l.castro@usmp.edu.pe</code> / <code>est123</code>
+        </div>
+        <div class="cred-item">
+          <span class="cred-role">Sandra</span>
+          <code>s.rios@usmp.edu.pe</code> / <code>est123</code>
+        </div>
+        <div class="cred-item">
+          <span class="cred-role">Diego</span>
+          <code>d.meza@usmp.edu.pe</code> / <code>est123</code>
+        </div>
+      </div>
+
+      <div id="creds-juez" class="hidden">
+        <div class="cred-item">
+          <span class="cred-role">Juez 1</span>
+          <code>c.vega@usmp.edu.pe</code> / <code>juez123</code>
+        </div>
+        <div class="cred-item">
+          <span class="cred-role">Juez 2</span>
+          <code>l.rivas@usmp.edu.pe</code> / <code>juez123</code>
+        </div>
+        <div class="cred-item">
+          <span class="cred-role">Marketing</span>
+          <code>a.torres@usmp.edu.pe</code> / <code>mkt123</code>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

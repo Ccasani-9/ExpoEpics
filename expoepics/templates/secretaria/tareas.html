@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% block title %}Tareas{% endblock %}
+{% block page_title %}Tareas del Evento{% endblock %}
+
+{% block content %}
+<!-- Header con contadores -->
+<div class="section-header mb-16" style="margin-bottom:16px;">
+  <div>
+    <div class="section-title">Gestión de tareas</div>
+    <div style="display:flex; gap:12px; margin-top:6px; flex-wrap:wrap;">
+      <span><span class="dot dot-success"></span><strong>{{ conteos.Completado }}</strong> Completado</span>
+      <span><span class="dot dot-warn"></span><strong>{{ conteos['En proceso'] }}</strong> En proceso</span>
+      <span><span class="dot dot-danger"></span><strong>{{ conteos.Pendiente }}</strong> Pendiente</span>
+      <span class="text-muted text-sm">Total: {{ conteos.Total }}</span>
+    </div>
+  </div>
+  <a href="{{ url_for('secretaria.tarea_nueva') }}" class="btn btn-primary">
+    <i class="ti ti-plus"></i> Nueva tarea
+  </a>
+</div>
+
+<!-- Barra de progreso -->
+{% if conteos.Total > 0 %}
+<div class="card mb-24" style="margin-bottom:16px; padding:14px 18px;">
+  <div class="progress-wrap" style="margin:0;">
+    <div class="progress-label">
+      <span>Progreso general</span>
+      <span>{{ ((conteos.Completado / conteos.Total) * 100) | round(0) | int }}%</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill green"
+           style="width:{{ ((conteos.Completado / conteos.Total) * 100) | round(0) | int }}%"></div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Filtros -->
+<div style="display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap;">
+  {% for f in ['Todos', 'Pendiente', 'En proceso', 'Completado'] %}
+    <a href="{{ url_for('secretaria.tareas', estado=f) }}"
+       class="btn btn-sm {% if filtro == f %}btn-primary{% else %}btn-outline{% endif %}">
+      {{ f }}
+    </a>
+  {% endfor %}
+</div>
+
+<!-- Lista de tareas -->
+{% if not tareas %}
+  <div class="alert alert-info">No hay tareas para mostrar.</div>
+{% else %}
+<div class="tarea-cards">
+  {% for t in tareas %}
+  <div class="tarea-card">
+    <div class="tarea-card-header">
+      <div style="flex:1;">
+        <div class="tarea-title">{{ t.titulo }}</div>
+        {% if t.descripcion %}
+          <div class="tarea-desc">{{ t.descripcion }}</div>
+        {% endif %}
+      </div>
+      {% if t.estado == 'Completado' %}
+        <span class="badge badge-success">{{ t.estado }}</span>
+      {% elif t.estado == 'En proceso' %}
+        <span class="badge badge-warn">{{ t.estado }}</span>
+      {% else %}
+        <span class="badge badge-danger">{{ t.estado }}</span>
+      {% endif %}
+    </div>
+
+    {% if t.comentario %}
+      <div class="tarea-comment">
+        <i class="ti ti-message"></i> {{ t.comentario }}
+      </div>
+    {% endif %}
+
+    <div class="tarea-footer">
+      <span class="tarea-date"><i class="ti ti-calendar-plus"></i> Creada: {{ t.fecha_creacion }}</span>
+      {% if t.fecha_limite %}
+        <span class="tarea-date"><i class="ti ti-calendar-due"></i> Límite: {{ t.fecha_limite }}</span>
+      {% endif %}
+      {% if t.fecha_culminacion %}
+        <span class="tarea-date" style="color:var(--success);">
+          <i class="ti ti-check"></i> Completada: {{ t.fecha_culminacion }}
+        </span>
+      {% endif %}
+
+      <!-- Botones de acción -->
+      <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
+        {% if t.estado != 'En proceso' %}
+          <form method="POST" action="{{ url_for('secretaria.cambiar_estado_tarea', id_tarea=t.id_tarea) }}" style="display:inline;">
+            <input type="hidden" name="estado" value="En proceso">
+            <button class="btn btn-warn btn-sm" type="submit">
+              <i class="ti ti-clock"></i> En proceso
+            </button>
+          </form>
+        {% endif %}
+        {% if t.estado != 'Completado' %}
+          <form method="POST" action="{{ url_for('secretaria.cambiar_estado_tarea', id_tarea=t.id_tarea) }}" style="display:inline;">
+            <input type="hidden" name="estado" value="Completado">
+            <button class="btn btn-success btn-sm" type="submit">
+              <i class="ti ti-check"></i> Completar
+            </button>
+          </form>
+        {% else %}
+          <form method="POST" action="{{ url_for('secretaria.cambiar_estado_tarea', id_tarea=t.id_tarea) }}" style="display:inline;">
+            <input type="hidden" name="estado" value="Pendiente">
+            <button class="btn btn-outline btn-sm" type="submit">
+              <i class="ti ti-rotate-clockwise"></i> Reabrir
+            </button>
+          </form>
+        {% endif %}
+        <button class="btn btn-outline btn-sm" onclick="toggleComment({{ t.id_tarea }})">
+          <i class="ti ti-message"></i> Comentar
+        </button>
+      </div>
+    </div>
+
+    <!-- Form comentario (oculto) -->
+    <div id="comment-form-{{ t.id_tarea }}" class="hidden" style="margin-top:10px;">
+      <form method="POST" action="{{ url_for('secretaria.agregar_comentario', id_tarea=t.id_tarea) }}">
+        <div style="display:flex; gap:8px;">
+          <input type="text" name="comentario" value="{{ t.comentario or '' }}"
+                 placeholder="Agregar comentario..." style="flex:1;">
+          <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+          <button type="button" class="btn btn-outline btn-sm"
+                  onclick="toggleComment({{ t.id_tarea }})">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

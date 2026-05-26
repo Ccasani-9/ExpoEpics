@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% block title %}Evaluar — {{ proyecto.nombre }}{% endblock %}
+{% block page_title %}Evaluar Proyecto{% endblock %}
+
+{% block content %}
+<!-- Encabezado del proyecto -->
+<div class="card mb-24" style="margin-bottom:20px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+    <div>
+      <div style="font-size:20px; font-weight:800; margin-bottom:6px;">{{ proyecto.nombre }}</div>
+      <div style="display:flex; flex-wrap:wrap; gap:10px; font-size:13px; color:var(--muted);">
+        <span><i class="ti ti-book"></i> {{ proyecto.nombre_curso }}</span>
+        <span><i class="ti ti-hash"></i> Grupo {{ proyecto.id_grupo }}</span>
+        <span><i class="ti ti-table"></i> Mesa {{ proyecto.num_mesa }}</span>
+      </div>
+    </div>
+    <a href="{{ url_for('juez.proyectos') }}" class="btn btn-outline btn-sm">
+      <i class="ti ti-arrow-left"></i> Volver
+    </a>
+  </div>
+</div>
+
+<!-- Descripción del proyecto (solo lectura) -->
+<div class="card mb-24" style="margin-bottom:20px; background:#f8fafc;">
+  <div class="card-title">Sobre el proyecto</div>
+  <p style="color:var(--muted); font-size:13.5px; line-height:1.7; margin-bottom:10px;">
+    {{ proyecto.descripcion or 'Sin descripción.' }}
+  </p>
+  {% if tecnologias %}
+    <div class="tech-chips">
+      {% for t in tecnologias %}<span class="chip">{{ t }}</span>{% endfor %}
+    </div>
+  {% endif %}
+  {% if proyecto.descripcion_tecnologia %}
+    <p style="margin-top:10px; font-size:13px; color:var(--muted); line-height:1.6;">
+      {{ proyecto.descripcion_tecnologia }}
+    </p>
+  {% endif %}
+</div>
+
+<!-- Evaluación -->
+<div class="card" style="max-width:600px;">
+  <div class="card-title">Formulario de evaluación</div>
+
+  {% if evaluacion and evaluacion.finalizada %}
+    <div class="alert alert-success">
+      <i class="ti ti-lock"></i>
+      <strong>Esta evaluación está finalizada y no puede modificarse.</strong>
+    </div>
+    <hr class="divider">
+    <div class="form-group">
+      <div class="detail-label">Calificación</div>
+      <span class="badge badge-success badge-lg">{{ evaluacion.calificacion }}</span>
+    </div>
+    {% if evaluacion.detalle %}
+    <div class="form-group">
+      <div class="detail-label">Observaciones</div>
+      <div class="detail-value">{{ evaluacion.detalle }}</div>
+    </div>
+    {% endif %}
+    {% if evaluacion.aspectos_mejora %}
+    <div class="form-group">
+      <div class="detail-label">Aspectos de mejora</div>
+      <div class="detail-value">{{ evaluacion.aspectos_mejora }}</div>
+    </div>
+    {% endif %}
+  {% else %}
+
+    {% if error %}
+      <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    {% if evaluacion %}
+      <div class="alert alert-warning">
+        <i class="ti ti-pencil"></i> Tienes un borrador guardado. Puedes editarlo o finalizarlo.
+      </div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('juez.evaluar', id_proyecto=proyecto.id_proyecto) }}">
+      <div class="form-group">
+        <label for="calificacion">Calificación <span style="color:var(--danger);">*</span></label>
+        <select id="calificacion" name="calificacion" required>
+          <option value="">— Selecciona una calificación —</option>
+          {% for cal in ['Excelente','Muy buena','Buena','Regular','Mala','Muy mala','Revisado'] %}
+            <option value="{{ cal }}"
+              {% if evaluacion and evaluacion.calificacion == cal %}selected{% endif %}>
+              {{ cal }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="detalle">Observaciones del proyecto</label>
+        <textarea id="detalle" name="detalle" rows="4"
+                  placeholder="Describe los aspectos positivos y el nivel de desarrollo...">{{ evaluacion.detalle if evaluacion else '' }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="aspectos">Aspectos de mejora</label>
+        <textarea id="aspectos" name="aspectos_mejora" rows="3"
+                  placeholder="¿Qué puede mejorar el equipo?">{{ evaluacion.aspectos_mejora if evaluacion else '' }}</textarea>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:6px; flex-wrap:wrap;">
+        <button type="submit" name="accion" value="borrador" class="btn btn-outline">
+          <i class="ti ti-device-floppy"></i> Guardar borrador
+        </button>
+        <button type="submit" name="accion" value="finalizar" class="btn btn-primary"
+                onclick="return confirm('¿Finalizar la evaluación? No podrá editarse después.');">
+          <i class="ti ti-lock"></i> Finalizar evaluación
+        </button>
+      </div>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

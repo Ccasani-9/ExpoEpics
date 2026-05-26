@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Nueva Tarea{% endblock %}
+{% block page_title %}Nueva Tarea{% endblock %}
+
+{% block content %}
+<div style="max-width:560px;">
+  <div class="card">
+    <div class="section-header" style="margin-bottom:20px;">
+      <div class="section-title">Crear nueva tarea</div>
+      <a href="{{ url_for('secretaria.tareas') }}" class="btn btn-outline btn-sm">
+        <i class="ti ti-arrow-left"></i> Volver
+      </a>
+    </div>
+
+    {% if evento %}
+      <div class="alert alert-info" style="margin-bottom:16px;">
+        Evento: <strong>{{ evento.fecha.strftime('%d/%m/%Y') }}</strong> —
+        {{ evento.hora_inicio }} a {{ evento.hora_fin }}
+      </div>
+    {% endif %}
+
+    {% if error %}
+      <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('secretaria.tarea_nueva') }}">
+      <div class="form-group">
+        <label for="titulo">Título <span style="color:var(--danger);">*</span></label>
+        <input type="text" id="titulo" name="titulo" placeholder="Ej: Organizar mesas del patio"
+               value="{{ request.form.titulo or '' }}" required maxlength="120">
+      </div>
+
+      <div class="form-group">
+        <label for="descripcion">Descripción</label>
+        <textarea id="descripcion" name="descripcion"
+                  placeholder="Detalla qué hay que hacer...">{{ request.form.descripcion or '' }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="fecha_limite">Fecha límite</label>
+        <input type="date" id="fecha_limite" name="fecha_limite"
+               value="{{ request.form.fecha_limite or '' }}">
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:4px;">
+        <button type="submit" class="btn btn-primary">
+          <i class="ti ti-plus"></i> Crear tarea
+        </button>
+        <a href="{{ url_for('secretaria.tareas') }}" class="btn btn-outline">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

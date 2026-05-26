@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% block title %}{{ proyecto.nombre }}{% endblock %}
+{% block page_title %}Detalle del Proyecto{% endblock %}
+
+{% block content %}
+<!-- Encabezado -->
+<div class="card mb-24" style="margin-bottom:20px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+    <div>
+      <div style="font-size:22px; font-weight:800; margin-bottom:6px;">{{ proyecto.nombre }}</div>
+      <div style="display:flex; flex-wrap:wrap; gap:10px; font-size:13px; color:var(--muted);">
+        <span><i class="ti ti-book"></i> {{ proyecto.nombre_curso }}</span>
+        <span><i class="ti ti-hash"></i> Grupo {{ proyecto.id_grupo }}</span>
+        <span><i class="ti ti-table"></i> Mesa {{ proyecto.num_mesa }} — {{ proyecto.ubicacion }}</span>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      {% if proyecto.estado == 'Aprobado' %}
+        <span class="badge badge-success badge-lg">{{ proyecto.estado }}</span>
+      {% elif proyecto.estado == 'En revisión' %}
+        <span class="badge badge-warn badge-lg">{{ proyecto.estado }}</span>
+      {% elif proyecto.estado == 'Rechazado' %}
+        <span class="badge badge-danger badge-lg">{{ proyecto.estado }}</span>
+      {% elif proyecto.estado == 'Presentado' %}
+        <span class="badge badge-info badge-lg">{{ proyecto.estado }}</span>
+      {% else %}
+        <span class="badge badge-gray badge-lg">{{ proyecto.estado }}</span>
+      {% endif %}
+      <a href="{{ url_for('docente.proyectos') }}" class="btn btn-outline btn-sm">
+        <i class="ti ti-arrow-left"></i> Volver
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Descripción y tecnologías -->
+<div class="two-col mb-24" style="margin-bottom:20px;">
+  <div class="card">
+    <div class="card-title">Descripción del proyecto</div>
+    <p style="color:var(--muted); font-size:13.5px; line-height:1.7;">
+      {{ proyecto.descripcion or 'Sin descripción.' }}
+    </p>
+    {% if proyecto.url_documento %}
+      <div style="margin-top:14px;">
+        <a href="{{ proyecto.url_documento }}" target="_blank" class="btn btn-outline btn-sm">
+          <i class="ti ti-file-description"></i> Ver documentación
+        </a>
+      </div>
+    {% else %}
+      <div class="alert alert-warning" style="margin-top:12px; font-size:12.5px;">
+        No hay documentación adjunta aún.
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-title">Tecnologías utilizadas</div>
+    <div class="tech-chips">
+      {% for t in tecnologias %}
+        <span class="chip">{{ t }}</span>
+      {% else %}
+        <span class="text-muted text-sm">Sin tecnologías registradas.</span>
+      {% endfor %}
+    </div>
+    {% if proyecto.descripcion_tecnologia %}
+      <p style="margin-top:12px; color:var(--muted); font-size:13px; line-height:1.6;">
+        {{ proyecto.descripcion_tecnologia }}
+      </p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Integrantes -->
+<div class="card mb-24" style="margin-bottom:20px;">
+  <div class="card-title">Integrantes del grupo</div>
+  <div class="members-list">
+    {% for m in integrantes %}
+    <div class="member-row">
+      <div class="avatar {% if m.es_lider %}avatar-lider{% endif %}">
+        {{ m.nombre[0] | upper }}{{ m.apellido[0] | upper }}
+      </div>
+      <div>
+        <span class="member-name">{{ m.nombre }} {{ m.apellido }}</span>
+        {% if m.es_lider %}<span class="badge badge-blue" style="margin-left:6px;">★ Líder</span>{% endif %}
+        <div class="member-code">Código: {{ m.codigo }}</div>
+      </div>
+    </div>
+    {% else %}
+      <p class="text-muted text-sm">Sin integrantes registrados.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Cambiar estado (solo si es el docente del curso) -->
+{% if es_docente_del_curso %}
+<div class="card mb-24" style="margin-bottom:20px; border-color: var(--blue);">
+  <div class="card-title">Cambiar estado del proyecto</div>
+  <p class="text-muted text-sm" style="margin-bottom:14px;">
+    Como docente del curso, puedes cambiar el estado del proyecto.
+  </p>
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    <form method="POST" action="{{ url_for('docente.cambiar_estado', id=proyecto.id_proyecto) }}">
+      <input type="hidden" name="estado" value="En revisión">
+      <button type="submit" class="btn btn-warn">
+        <i class="ti ti-clock"></i> En revisión
+      </button>
+    </form>
+    <form method="POST" action="{{ url_for('docente.cambiar_estado', id=proyecto.id_proyecto) }}">
+      <input type="hidden" name="estado" value="Aprobado">
+      <button type="submit" class="btn btn-success">
+        <i class="ti ti-check"></i> Aprobado
+      </button>
+    </form>
+    <form method="POST" action="{{ url_for('docente.cambiar_estado', id=proyecto.id_proyecto) }}"
+          data-confirm="¿Seguro que quieres rechazar este proyecto?">
+      <input type="hidden" name="estado" value="Rechazado">
+      <button type="submit" class="btn btn-danger">
+        <i class="ti ti-x"></i> Rechazado
+      </button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<!-- Evaluaciones recibidas -->
+<div class="card">
+  <div class="card-title">Evaluaciones recibidas</div>
+  {% if not evaluaciones %}
+    <p class="text-muted text-sm">Este proyecto aún no ha sido evaluado.</p>
+  {% else %}
+  <div class="eval-cards">
+    {% for ev in evaluaciones %}
+    <div class="eval-card">
+      <div class="eval-header">
+        <div>
+          <span class="text-bold">{{ ev.nombre_juez }}</span>
+          <span class="text-muted text-sm" style="margin-left:8px;">{{ ev.fecha_evaluacion }}</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          {% if ev.calificacion == 'Excelente' %}
+            <span class="badge badge-success">{{ ev.calificacion }}</span>
+          {% elif ev.calificacion in ('Muy buena', 'Buena') %}
+            <span class="badge badge-blue">{{ ev.calificacion }}</span>
+          {% elif ev.calificacion == 'Regular' %}
+            <span class="badge badge-warn">{{ ev.calificacion }}</span>
+          {% else %}
+            <span class="badge badge-danger">{{ ev.calificacion }}</span>
+          {% endif %}
+          {% if ev.finalizada %}
+            <span class="badge badge-gray">Finalizada</span>
+          {% else %}
+            <span class="badge badge-warn">Borrador</span>
+          {% endif %}
+        </div>
+      </div>
+      {% if ev.detalle %}
+        <div class="eval-block">
+          <div class="eval-block-title">Observaciones</div>
+          {{ ev.detalle }}
+        </div>
+      {% endif %}
+      {% if ev.aspectos_mejora %}
+        <div class="eval-block mejora">
+          <div class="eval-block-title">Aspectos de mejora</div>
+          {{ ev.aspectos_mejora }}
+        </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

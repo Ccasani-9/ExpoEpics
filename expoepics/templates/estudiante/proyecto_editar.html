@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Editar Proyecto{% endblock %}
+{% block page_title %}Editar Proyecto{% endblock %}
+
+{% block content %}
+<div style="max-width:640px;">
+  <div class="card">
+    <div class="section-header" style="margin-bottom:20px;">
+      <div class="section-title">Editar información del proyecto</div>
+      <a href="{{ url_for('estudiante.proyecto') }}" class="btn btn-outline btn-sm">
+        <i class="ti ti-arrow-left"></i> Volver
+      </a>
+    </div>
+
+    {% if dias_restantes is not none %}
+      {% if dias_restantes > 3 %}
+        <div class="alert alert-success">
+          <i class="ti ti-calendar"></i> El evento es en <strong>{{ dias_restantes }} días</strong>. Tienes tiempo para editar.
+        </div>
+      {% else %}
+        <div class="alert alert-danger">
+          <i class="ti ti-lock"></i> El plazo de edición cerró. Faltan {{ dias_restantes }} día(s).
+        </div>
+      {% endif %}
+    {% endif %}
+
+    {% if error %}
+      <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('estudiante.editar_proyecto') }}">
+      <div class="form-group">
+        <label for="nombre">Nombre del proyecto <span style="color:var(--danger);">*</span></label>
+        <input type="text" id="nombre" name="nombre"
+               value="{{ request.form.nombre or proyecto.nombre }}"
+               placeholder="Nombre del proyecto" required maxlength="100">
+      </div>
+
+      <div class="form-group">
+        <label for="descripcion">Descripción</label>
+        <textarea id="descripcion" name="descripcion" rows="4"
+                  placeholder="Describe el proyecto, objetivos, alcance...">{{ request.form.descripcion or proyecto.descripcion or '' }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="tecnologias">Tecnologías utilizadas</label>
+        <input type="text" id="tecnologias" name="tecnologias_usadas"
+               value="{{ request.form.tecnologias_usadas or proyecto.tecnologias_usadas or '' }}"
+               placeholder="Ej: Python, Flask, MySQL, React (separadas por coma)">
+      </div>
+
+      <div class="form-group">
+        <label for="desc_tec">Descripción de tecnologías</label>
+        <textarea id="desc_tec" name="descripcion_tecnologia" rows="3"
+                  placeholder="Explica cómo se usa cada tecnología en el proyecto...">{{ request.form.descripcion_tecnologia or proyecto.descripcion_tecnologia or '' }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="url_doc">URL de documentación</label>
+        <input type="url" id="url_doc" name="url_documento"
+               value="{{ request.form.url_documento or proyecto.url_documento or '' }}"
+               placeholder="https://drive.google.com/...">
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:6px;">
+        <button type="submit" class="btn btn-primary">
+          <i class="ti ti-device-floppy"></i> Guardar cambios
+        </button>
+        <a href="{{ url_for('estudiante.proyecto') }}" class="btn btn-outline">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

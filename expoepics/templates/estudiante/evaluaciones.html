@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Evaluaciones{% endblock %}
+{% block page_title %}Evaluaciones de mi proyecto{% endblock %}
+
+{% block content %}
+{% if not evaluaciones %}
+  <div class="alert alert-info">
+    <i class="ti ti-info-circle"></i>
+    Tu proyecto aún no ha recibido evaluaciones finalizadas.
+  </div>
+{% else %}
+<div class="section-header mb-16" style="margin-bottom:18px;">
+  <div class="section-title">Evaluaciones recibidas</div>
+</div>
+
+<div class="eval-cards">
+  {% for ev in evaluaciones %}
+  <div class="eval-card">
+    <div class="eval-header">
+      <div>
+        <span class="text-bold" style="font-size:14px;">{{ ev.nombre_juez }}</span>
+        <div class="text-muted text-sm">{{ ev.fecha_evaluacion }}</div>
+      </div>
+      {% if ev.calificacion == 'Excelente' %}
+        <span class="badge badge-success badge-lg">⭐ {{ ev.calificacion }}</span>
+      {% elif ev.calificacion == 'Muy buena' %}
+        <span class="badge badge-success badge-lg">{{ ev.calificacion }}</span>
+      {% elif ev.calificacion == 'Buena' %}
+        <span class="badge badge-blue badge-lg">{{ ev.calificacion }}</span>
+      {% elif ev.calificacion == 'Regular' %}
+        <span class="badge badge-warn badge-lg">{{ ev.calificacion }}</span>
+      {% elif ev.calificacion == 'Mala' %}
+        <span class="badge badge-danger badge-lg">{{ ev.calificacion }}</span>
+      {% elif ev.calificacion == 'Muy mala' %}
+        <span class="badge badge-danger badge-lg">{{ ev.calificacion }}</span>
+      {% else %}
+        <span class="badge badge-gray badge-lg">{{ ev.calificacion }}</span>
+      {% endif %}
+    </div>
+    {% if ev.detalle %}
+      <div class="eval-block">
+        <div class="eval-block-title">Observaciones del juez</div>
+        {{ ev.detalle }}
+      </div>
+    {% endif %}
+    {% if ev.aspectos_mejora %}
+      <div class="eval-block mejora">
+        <div class="eval-block-title">Aspectos de mejora</div>
+        {{ ev.aspectos_mejora }}
+      </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

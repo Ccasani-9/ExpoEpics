@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cambiar contraseña — ExpoEpics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body class="pass-page">
+
+<div class="pass-card">
+  <div style="text-align:center; margin-bottom:20px;">
+    <div style="font-size:32px;">🔒</div>
+    <div class="pass-title">Cambiar contraseña</div>
+    <div class="pass-sub">ExpoEpics USMP</div>
+  </div>
+
+  {% if forzado %}
+    <div class="alert alert-warning">
+      <strong>Primer ingreso detectado.</strong> Debes establecer una nueva contraseña para continuar.
+    </div>
+  {% endif %}
+
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('auth.cambiar_pass') }}">
+    <div class="form-group">
+      <label for="nueva">Nueva contraseña</label>
+      <input type="password" id="nueva" name="nueva_contrasena"
+             placeholder="Mínimo 6 caracteres" required autocomplete="new-password">
+    </div>
+
+    <div class="form-group">
+      <label for="confirmar">Confirmar contraseña</label>
+      <input type="password" id="confirmar" name="confirmar_contrasena"
+             placeholder="Repite la contraseña" required autocomplete="new-password">
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-full">Guardar nueva contraseña</button>
+  </form>
+
+  {% if not forzado %}
+    <div style="text-align:center; margin-top:14px;">
+      <a href="{{ url_for('auth.logout') }}" class="btn btn-outline btn-sm">Cancelar</a>
+    </div>
+  {% endif %}
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

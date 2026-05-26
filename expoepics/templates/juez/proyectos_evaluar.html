@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}Proyectos a Evaluar{% endblock %}
+{% block page_title %}Proyectos a Evaluar{% endblock %}
+
+{% block content %}
+<!-- PENDIENTES -->
+<div class="section-header mb-16" style="margin-bottom:16px;">
+  <div>
+    <div class="section-title">Pendientes de evaluación</div>
+    <div class="section-subtitle">{{ pendientes | length }} proyecto(s) sin evaluar</div>
+  </div>
+</div>
+
+{% if not pendientes %}
+  <div class="alert alert-success" style="margin-bottom:24px;">
+    <i class="ti ti-check"></i> ¡Has evaluado todos los proyectos disponibles!
+  </div>
+{% else %}
+<div class="project-cards mb-24" style="margin-bottom:24px;">
+  {% for p in pendientes %}
+  <div class="project-card">
+    <div class="project-card-header">
+      <div>
+        <div class="project-card-title">{{ p.nombre }}</div>
+        <div class="project-card-meta">
+          <span><i class="ti ti-book"></i> {{ p.nombre_curso }}</span>
+          <span><i class="ti ti-hash"></i> Grupo {{ p.id_grupo }}</span>
+          <span><i class="ti ti-table"></i> Mesa {{ p.num_mesa }}</span>
+        </div>
+        {% if p.descripcion %}
+          <p class="text-muted text-sm" style="margin-top:6px; line-height:1.6;">
+            {{ p.descripcion[:150] }}{% if p.descripcion | length > 150 %}…{% endif %}
+          </p>
+        {% endif %}
+      </div>
+      <span class="badge badge-warn">Pendiente</span>
+    </div>
+    <div style="margin-top:12px;">
+      <a href="{{ url_for('juez.evaluar', id_proyecto=p.id_proyecto) }}" class="btn btn-primary btn-sm">
+        <i class="ti ti-star"></i> Evaluar
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- YA EVALUADOS -->
+<div class="section-header mb-16" style="margin-bottom:16px;">
+  <div>
+    <div class="section-title">Ya evaluados</div>
+    <div class="section-subtitle">{{ evaluados | length }} evaluación(es)</div>
+  </div>
+</div>
+
+{% if not evaluados %}
+  <div class="alert alert-info">Aún no has evaluado ningún proyecto.</div>
+{% else %}
+<div class="project-cards">
+  {% for p in evaluados %}
+  <div class="project-card" style="opacity:0.85;">
+    <div class="project-card-header">
+      <div>
+        <div class="project-card-title">{{ p.nombre }}</div>
+        <div class="project-card-meta">
+          <span><i class="ti ti-book"></i> {{ p.nombre_curso }}</span>
+          <span><i class="ti ti-hash"></i> Grupo {{ p.id_grupo }}</span>
+          <span><i class="ti ti-table"></i> Mesa {{ p.num_mesa }}</span>
+        </div>
+      </div>
+      <div style="display:flex; gap:6px; flex-direction:column; align-items:flex-end;">
+        {% if p.calificacion == 'Excelente' %}
+          <span class="badge badge-success">{{ p.calificacion }}</span>
+        {% elif p.calificacion in ('Muy buena','Buena') %}
+          <span class="badge badge-blue">{{ p.calificacion }}</span>
+        {% elif p.calificacion == 'Regular' %}
+          <span class="badge badge-warn">{{ p.calificacion }}</span>
+        {% else %}
+          <span class="badge badge-danger">{{ p.calificacion }}</span>
+        {% endif %}
+        {% if p.finalizada %}
+          <span class="badge badge-gray">🔒 Finalizada</span>
+        {% else %}
+          <span class="badge badge-warn">Borrador</span>
+        {% endif %}
+      </div>
+    </div>
+    <div style="margin-top:10px; display:flex; gap:8px;">
+      {% if not p.finalizada %}
+        <a href="{{ url_for('juez.evaluar', id_proyecto=p.id_proyecto) }}" class="btn btn-outline btn-sm">
+          <i class="ti ti-edit"></i> Editar borrador
+        </a>
+        <form method="POST"
+              action="{{ url_for('juez.finalizar', id_evaluacion=p.id_evaluacion) }}"
+              data-confirm="¿Finalizar esta evaluación? No podrá editarse después.">
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="ti ti-lock"></i> Finalizar
+          </button>
+        </form>
+      {% else %}
+        <a href="{{ url_for('juez.evaluar', id_proyecto=p.id_proyecto) }}" class="btn btn-outline btn-sm">
+          <i class="ti ti-eye"></i> Ver evaluación
+        </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

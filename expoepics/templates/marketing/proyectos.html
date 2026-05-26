@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}Proyectos{% endblock %}
+{% block page_title %}Proyectos con Evaluaciones{% endblock %}
+
+{% macro badge_cal(cal) %}
+  {% if cal == 'Excelente' %}<span class="badge badge-success">{{ cal }}</span>
+  {% elif cal in ('Muy buena','Buena') %}<span class="badge badge-blue">{{ cal }}</span>
+  {% elif cal == 'Regular' %}<span class="badge badge-warn">{{ cal }}</span>
+  {% else %}<span class="badge badge-danger">{{ cal }}</span>{% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="section-header mb-16" style="margin-bottom:20px;">
+  <div class="section-title">Detalle de proyectos y evaluaciones</div>
+  <a href="{{ url_for('marketing.exportar') }}" class="btn btn-primary btn-sm">
+    <i class="ti ti-download"></i> Exportar CSV
+  </a>
+</div>
+
+{% if not proyectos %}
+  <div class="alert alert-info">No hay proyectos registrados.</div>
+{% else %}
+<div class="project-cards">
+  {% for p in proyectos %}
+  <div class="project-card">
+    <div class="project-card-header">
+      <div style="flex:1;">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <div class="project-card-title">{{ p.nombre }}</div>
+          {% if p.promedio is not none %}
+            <span style="font-size:13px; font-weight:700; color:var(--blue);">
+              {{ "%.2f"|format(p.promedio) }}/6
+            </span>
+          {% else %}
+            <span class="text-muted text-sm">Sin calificación</span>
+          {% endif %}
+        </div>
+        <div class="project-card-meta">
+          <span><i class="ti ti-book"></i> {{ p.nombre_curso }}</span>
+          <span><i class="ti ti-hash"></i> Grupo {{ p.id_grupo }}</span>
+          <span><i class="ti ti-table"></i> Mesa {{ p.num_mesa }} — {{ p.ubicacion }}</span>
+          <span><i class="ti ti-star"></i> {{ p.num_evaluaciones }} evaluación(es)</span>
+        </div>
+        {% if p.descripcion %}
+          <p class="text-muted text-sm" style="margin-top:4px; line-height:1.6;">
+            {{ p.descripcion[:200] }}{% if p.descripcion | length > 200 %}…{% endif %}
+          </p>
+        {% endif %}
+        {% if p.tecnologias_usadas %}
+          <div class="tech-chips" style="margin-top:8px;">
+            {% for t in p.tecnologias_usadas.split(',') %}
+              {% if t.strip() %}<span class="chip">{{ t.strip() }}</span>{% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Evaluaciones del proyecto -->
+    {% if p.evaluaciones %}
+    <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:12px;">
+      <div class="detail-label" style="margin-bottom:8px;">Evaluaciones recibidas</div>
+      {% for ev in p.evaluaciones %}
+      <div style="display:flex; align-items:flex-start; gap:12px; margin-bottom:10px;
+                  padding:10px; background:#f8fafc; border-radius:8px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:200px;">
+          <span class="text-bold" style="font-size:13px;">{{ ev.nombre_juez }}</span>
+          <span class="text-muted text-sm" style="margin-left:8px;">{{ ev.fecha_evaluacion }}</span>
+          {% if ev.detalle %}
+            <p class="text-muted text-sm" style="margin-top:4px; line-height:1.5;">
+              {{ ev.detalle[:120] }}{% if ev.detalle | length > 120 %}…{% endif %}
+            </p>
+          {% endif %}
+          {% if ev.aspectos_mejora %}
+            <p class="text-sm" style="margin-top:3px; color:var(--warn);">
+              💡 {{ ev.aspectos_mejora[:80] }}{% if ev.aspectos_mejora | length > 80 %}…{% endif %}
+            </p>
+          {% endif %}
+        </div>
+        {{ badge_cal(ev.calificacion) }}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+      <div class="text-muted text-sm" style="margin-top:8px;">
+        Sin evaluaciones registradas.
+      </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

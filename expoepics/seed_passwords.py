@@ -42,13 +42,13 @@ for correo, password in usuarios:
         'UPDATE persona SET contrasena=%s WHERE correo=%s',
         (hashed.decode(), correo)
     )
-    print(f'  ✓ {correo}')
+    print(f'  OK {correo}')
 
 conn.commit()
 cursor.close()
 conn.close()
 
-print('\n✅ Contraseñas actualizadas con bcrypt.')
+print('\nContrasenas actualizadas con bcrypt.')
 print('\nUsuarios de prueba:')
 print('  Docente:    r.garcia@usmp.edu.pe   / docente123')
 print('  Secretaria: v.huanca@usmp.edu.pe   / secre123')

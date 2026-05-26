@@ -3,6 +3,34 @@
 {% block page_title %}Evaluaciones de Jueces{% endblock %}
 
 {% block content %}
+
+{% set finalizadas = evaluaciones | selectattr('finalizada') | list | length %}
+{% set borradores  = evaluaciones | rejectattr('finalizada') | list | length %}
+
+<!-- Tarjetas de contador -->
+<div class="metrics-grid" style="margin-bottom:24px;">
+  <div class="metric-card" style="border-left:4px solid var(--success);">
+    <div class="metric-label">Revisados</div>
+    <div class="metric-value" style="color:var(--success);">{{ finalizadas }}</div>
+    <div class="metric-sub">Evaluaciones finalizadas</div>
+  </div>
+  <div class="metric-card" style="border-left:4px solid var(--danger);">
+    <div class="metric-label">Sin evaluar</div>
+    <div class="metric-value" style="color:var(--danger);">{{ sin_evaluar }}</div>
+    <div class="metric-sub">Proyectos sin evaluación</div>
+  </div>
+  <div class="metric-card" style="border-left:4px solid var(--warn);">
+    <div class="metric-label">En borrador</div>
+    <div class="metric-value" style="color:var(--warn);">{{ borradores }}</div>
+    <div class="metric-sub">Evaluaciones no finalizadas</div>
+  </div>
+  <div class="metric-card" style="border-left:4px solid var(--blue);">
+    <div class="metric-label">Total evaluaciones</div>
+    <div class="metric-value">{{ evaluaciones | length }}</div>
+    <div class="metric-sub">Registradas en el evento</div>
+  </div>
+</div>
+
 <div class="section-header mb-16" style="margin-bottom:18px;">
   <div>
     <div class="section-title">Todas las evaluaciones</div>

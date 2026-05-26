@@ -1,6 +1,6 @@
 import json
 import bcrypt
-from flask import Blueprint, render_template, request, session, redirect, url_for, flash
+from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify
 from auth import role_required
 from database import query
 
@@ -85,6 +85,112 @@ def dashboard():
                            proyectos_recientes=proyectos_recientes,
                            chart_cursos=json.dumps(chart_cursos, default=str),
                            chart_estados=json.dumps(chart_estados, default=str))
+
+
+@docente_bp.route('/api/estudiantes')
+@role_required('docente')
+def api_estudiantes():
+    evento = _get_evento()
+    if not evento:
+        return jsonify([])
+    rows = query(
+        "SELECT DISTINCT pe.nombre, pe.apellido, pe.correo, pe.dni, es.codigo, es.ciclo "
+        "FROM estudiante_grupo eg "
+        "JOIN grupo g ON eg.id_grupo = g.id_grupo "
+        "JOIN estudiante es ON eg.id_estudiante = es.id_estudiante "
+        "JOIN persona pe ON es.id_persona = pe.id_persona "
+        "JOIN curso c ON g.id_curso = c.id_curso "
+        "WHERE g.id_evento = %s AND c.id_docente = %s "
+        "ORDER BY pe.apellido, pe.nombre",
+        (evento['id_evento'], session['role_id']))
+    return jsonify(rows)
+
+
+@docente_bp.route('/api/grupos')
+@role_required('docente')
+def api_grupos():
+    evento = _get_evento()
+    if not evento:
+        return jsonify([])
+    rows = query(
+        "SELECT g.id_grupo, c.nombre AS nombre_curso, c.color, e.num_mesa, e.ubicacion, "
+        "       p.nombre AS nombre_proyecto, p.estado AS estado_proyecto, "
+        "       pe.nombre, pe.apellido, pe.correo, pe.dni, es.codigo, es.ciclo, "
+        "       CASE WHEN g.id_lider = es.id_estudiante THEN 1 ELSE 0 END AS es_lider "
+        "FROM grupo g "
+        "JOIN curso c ON g.id_curso = c.id_curso "
+        "JOIN espacio e ON g.id_espacio = e.id_espacio "
+        "LEFT JOIN proyecto p ON g.id_grupo = p.id_grupo "
+        "JOIN estudiante_grupo eg ON g.id_grupo = eg.id_grupo "
+        "JOIN estudiante es ON eg.id_estudiante = es.id_estudiante "
+        "JOIN persona pe ON es.id_persona = pe.id_persona "
+        "WHERE g.id_evento = %s AND c.id_docente = %s "
+        "ORDER BY g.id_grupo, es_lider DESC, pe.apellido",
+        (evento['id_evento'], session['role_id']))
+    grupos = {}
+    for r in rows:
+        gid = r['id_grupo']
+        if gid not in grupos:
+            grupos[gid] = {
+                'id_grupo': gid,
+                'nombre_curso': r['nombre_curso'],
+                'color': r['color'],
+                'num_mesa': r['num_mesa'],
+                'ubicacion': r['ubicacion'],
+                'nombre_proyecto': r['nombre_proyecto'],
+                'estado_proyecto': r['estado_proyecto'],
+                'miembros': []
+            }
+        grupos[gid]['miembros'].append({
+            'nombre': r['nombre'],
+            'apellido': r['apellido'],
+            'correo': r['correo'],
+            'dni': r['dni'],
+            'codigo': r['codigo'],
+            'ciclo': r['ciclo'],
+            'es_lider': bool(r['es_lider'])
+        })
+    return jsonify(list(grupos.values()))
+
+
+@docente_bp.route('/api/proyectos')
+@role_required('docente')
+def api_proyectos():
+    evento = _get_evento()
+    if not evento:
+        return jsonify([])
+    rows = query(
+        "SELECT c.id_curso, c.nombre AS nombre_curso, c.color, "
+        "       p.id_proyecto, p.nombre AS nombre_proyecto, p.estado, "
+        "       p.descripcion, p.tecnologias_usadas, "
+        "       g.id_grupo, e.num_mesa, e.ubicacion "
+        "FROM proyecto p "
+        "JOIN grupo g ON p.id_grupo = g.id_grupo "
+        "JOIN curso c ON g.id_curso = c.id_curso "
+        "JOIN espacio e ON g.id_espacio = e.id_espacio "
+        "WHERE g.id_evento = %s AND c.id_docente = %s "
+        "ORDER BY c.nombre, p.nombre",
+        (evento['id_evento'], session['role_id']))
+    cursos = {}
+    for r in rows:
+        cid = r['id_curso']
+        if cid not in cursos:
+            cursos[cid] = {
+                'id_curso': cid,
+                'nombre_curso': r['nombre_curso'],
+                'color': r['color'],
+                'proyectos': []
+            }
+        cursos[cid]['proyectos'].append({
+            'id_proyecto': r['id_proyecto'],
+            'nombre_proyecto': r['nombre_proyecto'],
+            'estado': r['estado'],
+            'descripcion': r['descripcion'],
+            'tecnologias_usadas': r['tecnologias_usadas'],
+            'num_mesa': r['num_mesa'],
+            'ubicacion': r['ubicacion'],
+        })
+    return jsonify(list(cursos.values()))
 
 
 @docente_bp.route('/proyectos')
@@ -196,6 +302,7 @@ def cambiar_estado(id):
 def evaluaciones():
     evento = _get_evento()
     lista = []
+    sin_evaluar = 0
     if evento:
         lista = query(
             "SELECT ev.id_evaluacion, ev.calificacion, ev.detalle, ev.aspectos_mejora, "
@@ -209,10 +316,21 @@ def evaluaciones():
             "JOIN curso c ON g.id_curso=c.id_curso "
             "JOIN juez j ON ev.id_juez=j.id_juez "
             "JOIN persona per ON j.id_persona=per.id_persona "
-            "WHERE g.id_evento=%s ORDER BY ev.fecha_evaluacion DESC, p.nombre",
+            "WHERE g.id_evento=%s "
+            "ORDER BY ev.fecha_evaluacion DESC, p.nombre",
             (evento['id_evento'],))
+        row = query(
+            "SELECT COUNT(*) AS cnt FROM proyecto p "
+            "JOIN grupo g ON p.id_grupo=g.id_grupo "
+            "JOIN curso c ON g.id_curso=c.id_curso "
+            "WHERE g.id_evento=%s AND c.id_docente=%s "
+            "AND p.id_proyecto NOT IN (SELECT DISTINCT id_proyecto FROM evaluacion)",
+            (evento['id_evento'], session['role_id']), fetch_one=True)
+        sin_evaluar = row['cnt'] if row else 0
 
-    return render_template('docente/evaluaciones.html', evaluaciones=lista, evento=evento)
+    return render_template('docente/evaluaciones.html',
+                           evaluaciones=lista, evento=evento,
+                           sin_evaluar=sin_evaluar)
 
 
 @docente_bp.route('/cuenta', methods=['GET', 'POST'])

@@ -9,19 +9,26 @@
 
 <!-- Métricas -->
 <div class="metrics-grid">
-  <div class="metric-card">
+  <div class="metric-card mc-colored mc-pink metric-card-clickable" onclick="openDetailModal('estudiantes')">
+    <i class="ti ti-users mc-icon"></i>
     <div class="metric-label">Estudiantes inscritos</div>
     <div class="metric-value">{{ metricas.participantes }}</div>
+    <div class="metric-sub">En el evento</div>
   </div>
-  <div class="metric-card">
+  <div class="metric-card mc-colored mc-purple metric-card-clickable" onclick="openDetailModal('grupos')">
+    <i class="ti ti-layout-grid mc-icon"></i>
     <div class="metric-label">Grupos participantes</div>
     <div class="metric-value">{{ metricas.grupos }}</div>
+    <div class="metric-sub">Grupos totales</div>
   </div>
-  <div class="metric-card">
+  <div class="metric-card mc-colored mc-teal metric-card-clickable" onclick="openDetailModal('proyectos')">
+    <i class="ti ti-folder mc-icon"></i>
     <div class="metric-label">Proyectos registrados</div>
     <div class="metric-value">{{ metricas.proyectos }}</div>
+    <div class="metric-sub">Proyectos en el evento</div>
   </div>
-  <div class="metric-card">
+  <div class="metric-card mc-colored mc-gold">
+    <i class="ti ti-chart-line mc-icon"></i>
     <div class="metric-label">% Inscripción</div>
     <div class="metric-value">{{ metricas.pct_inscripcion }}%</div>
     <div class="progress-wrap" style="margin-top:8px;">
@@ -30,30 +37,31 @@
       </div>
     </div>
   </div>
-  <div class="metric-card">
+  <div class="metric-card mc-colored mc-green">
+    <i class="ti ti-checklist mc-icon"></i>
     <div class="metric-label">% Tareas completadas</div>
     <div class="metric-value">{{ metricas.pct_tareas }}%</div>
     <div class="progress-wrap" style="margin-top:8px;">
       <div class="progress-bar-bg">
-        <div class="progress-bar-fill green" style="width:{{ metricas.pct_tareas }}%"></div>
+        <div class="progress-bar-fill" style="width:{{ metricas.pct_tareas }}%"></div>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Evento info -->
-<div class="card mb-24" style="margin-bottom:20px;">
-  <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
-    <div style="display:flex; gap:24px; flex-wrap:wrap;">
+<div class="card" style="margin-bottom:32px; border-left:4px solid var(--blue);">
+  <div style="display:flex; gap:40px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+    <div style="display:flex; gap:40px; flex-wrap:wrap;">
       <div>
         <div class="detail-label">Fecha del evento</div>
-        <div class="detail-value" style="font-size:18px; font-weight:700;">
+        <div class="detail-value" style="font-size:20px; font-weight:800; color:var(--blue);">
           {{ evento.fecha.strftime('%d de %B de %Y') if evento.fecha else '' }}
         </div>
       </div>
       <div>
         <div class="detail-label">Horario</div>
-        <div class="detail-value">{{ evento.hora_inicio }} — {{ evento.hora_fin }}</div>
+        <div class="detail-value" style="font-size:15px; font-weight:600;">{{ evento.hora_inicio }} — {{ evento.hora_fin }}</div>
       </div>
     </div>
     <a href="{{ url_for('secretaria.tareas') }}" class="btn btn-primary">
@@ -63,37 +71,40 @@
 </div>
 
 <!-- Resumen de tareas -->
-<div class="card mb-24" style="margin-bottom:20px;">
+<div class="card" style="margin-bottom:32px;">
   <div class="section-header">
-    <div class="section-title">Resumen de tareas</div>
+    <div>
+      <div class="section-title">Resumen de tareas</div>
+      <div class="section-subtitle">Estado general de tus tareas en el evento</div>
+    </div>
     <a href="{{ url_for('secretaria.tarea_nueva') }}" class="btn btn-primary btn-sm">
       <i class="ti ti-plus"></i> Nueva tarea
     </a>
   </div>
-  <div class="three-col" style="margin-bottom:14px;">
-    {% set completado = tareas_resumen | selectattr('estado', 'equalto', 'Completado') | list %}
-    {% set en_proceso = tareas_resumen | selectattr('estado', 'equalto', 'En proceso') | list %}
-    {% set pendiente  = tareas_resumen | selectattr('estado', 'equalto', 'Pendiente')  | list %}
-    <div style="text-align:center;">
-      <span class="dot dot-success"></span>
-      <span style="font-weight:700;">{{ completado[0].cnt if completado else 0 }}</span>
-      <span class="text-muted text-sm"> Completadas</span>
+  {% set completado = tareas_resumen | selectattr('estado', 'equalto', 'Completado') | list %}
+  {% set en_proceso = tareas_resumen | selectattr('estado', 'equalto', 'En proceso') | list %}
+  {% set pendiente  = tareas_resumen | selectattr('estado', 'equalto', 'Pendiente')  | list %}
+  <div style="display:flex; gap:32px; flex-wrap:wrap; margin-bottom:20px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="width:10px; height:10px; border-radius:50%; background:var(--success); flex-shrink:0;"></div>
+      <span style="font-size:22px; font-weight:800;">{{ completado[0].cnt if completado else 0 }}</span>
+      <span class="text-muted" style="font-size:13px;">Completadas</span>
     </div>
-    <div style="text-align:center;">
-      <span class="dot dot-warn"></span>
-      <span style="font-weight:700;">{{ en_proceso[0].cnt if en_proceso else 0 }}</span>
-      <span class="text-muted text-sm"> En proceso</span>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="width:10px; height:10px; border-radius:50%; background:var(--warn); flex-shrink:0;"></div>
+      <span style="font-size:22px; font-weight:800;">{{ en_proceso[0].cnt if en_proceso else 0 }}</span>
+      <span class="text-muted" style="font-size:13px;">En proceso</span>
     </div>
-    <div style="text-align:center;">
-      <span class="dot dot-danger"></span>
-      <span style="font-weight:700;">{{ pendiente[0].cnt if pendiente else 0 }}</span>
-      <span class="text-muted text-sm"> Pendientes</span>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="width:10px; height:10px; border-radius:50%; background:var(--danger); flex-shrink:0;"></div>
+      <span style="font-size:22px; font-weight:800;">{{ pendiente[0].cnt if pendiente else 0 }}</span>
+      <span class="text-muted" style="font-size:13px;">Pendientes</span>
     </div>
   </div>
   <div class="progress-wrap">
     <div class="progress-label">
       <span>Progreso de tareas</span>
-      <span>{{ metricas.pct_tareas }}%</span>
+      <span style="font-weight:700;">{{ metricas.pct_tareas }}%</span>
     </div>
     <div class="progress-bar-bg">
       <div class="progress-bar-fill green" style="width:{{ metricas.pct_tareas }}%"></div>
@@ -102,7 +113,7 @@
 </div>
 
 <!-- Gráficos -->
-<div class="charts-grid mb-24" style="margin-bottom:20px;">
+<div class="charts-grid" style="margin-bottom:32px;">
   <div class="chart-card">
     <div class="chart-title">Proyectos por curso</div>
     <div class="chart-container"><canvas id="chartCursos"></canvas></div>
@@ -115,7 +126,12 @@
 
 <!-- Proyectos recientes -->
 <div class="card">
-  <div class="card-title">Proyectos recientes</div>
+  <div class="section-header">
+    <div>
+      <div class="section-title">Proyectos recientes</div>
+      <div class="section-subtitle">Últimos proyectos registrados en el evento</div>
+    </div>
+  </div>
   <div class="table-wrap">
     <table>
       <thead>
@@ -135,17 +151,309 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="4" class="text-muted" style="text-align:center;">Sin proyectos.</td></tr>
+        <tr><td colspan="4" class="text-muted" style="text-align:center; padding:32px 0;">Sin proyectos.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+
+<!-- ══ MODAL: ESTUDIANTES ══ -->
+<div class="modal-overlay" id="modal-estudiantes" onclick="handleOverlayClick(event,'estudiantes')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-users" style="margin-right:6px;"></i>Estudiantes inscritos</div>
+      <button class="modal-close" onclick="closeDetailModal('estudiantes')">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="modal-body-estudiantes">
+      <div class="modal-loading">Cargando...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: GRUPOS ══ -->
+<div class="modal-overlay" id="modal-grupos" onclick="handleOverlayClick(event,'grupos')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title-grupos"><i class="ti ti-layout-grid" style="margin-right:6px;"></i>Grupos participantes</div>
+      <button class="modal-close" onclick="closeDetailModal('grupos')">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="modal-body-grupos">
+      <div class="modal-loading">Cargando...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: PROYECTOS ══ -->
+<div class="modal-overlay" id="modal-proyectos" onclick="handleOverlayClick(event,'proyectos')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title-proyectos"><i class="ti ti-folder" style="margin-right:6px;"></i>Proyectos por curso</div>
+      <button class="modal-close" onclick="closeDetailModal('proyectos')">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="modal-body-proyectos">
+      <div class="modal-loading">Cargando...</div>
+    </div>
+  </div>
+</div>
+
 {% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
   renderDashboardCharts({{ chart_cursos | safe }}, {{ chart_estados | safe }});
+
+  /* ── Modal core ── */
+  var _cursosData   = null;
+  var _gruposData   = null;
+  var _cursosGrupos = null;
+  var _cursoGrupoIdx = 0;
+  var _gruposPag    = 0;
+  var _GRUPOS_PP    = 10;
+
+  function openDetailModal(type) {
+    var overlay = document.getElementById('modal-' + type);
+    var body    = document.getElementById('modal-body-' + type);
+    overlay.classList.add('open');
+    body.innerHTML = '<div class="modal-loading">Cargando...</div>';
+
+    fetch('/secretaria/api/' + type)
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (type === 'estudiantes') renderEstudiantes(data, body);
+        else if (type === 'grupos')  renderGrupos(data, body);
+        else if (type === 'proyectos') { _cursosData = data; renderCursos(data, body); }
+      })
+      .catch(function(){
+        body.innerHTML = '<div class="modal-empty">Error al cargar los datos.</div>';
+      });
+  }
+
+  function closeDetailModal(type) {
+    document.getElementById('modal-' + type).classList.remove('open');
+    if (type === 'proyectos') {
+      document.getElementById('modal-title-proyectos').innerHTML =
+        '<i class="ti ti-folder" style="margin-right:6px;"></i>Proyectos por curso';
+    }
+  }
+
+  function handleOverlayClick(e, type) {
+    if (e.target === document.getElementById('modal-' + type)) closeDetailModal(type);
+  }
+
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') {
+      ['estudiantes','grupos','proyectos'].forEach(function(t){
+        document.getElementById('modal-' + t).classList.remove('open');
+      });
+    }
+  });
+
+  /* ── Badge helper ── */
+  function badgeClass(estado) {
+    var map = {
+      'Aprobado':    'badge-success',
+      'En revisión': 'badge-warn',
+      'Rechazado':   'badge-danger',
+      'Registrado':  'badge-info',
+      'Postulado':   'badge-gray',
+    };
+    return map[estado] || 'badge-gray';
+  }
+
+  /* ── Render: Estudiantes ── */
+  function renderEstudiantes(data, body) {
+    if (!data.length) {
+      body.innerHTML = '<div class="modal-empty">Sin estudiantes inscritos.</div>';
+      return;
+    }
+    var html = '<div class="table-wrap"><table><thead><tr>'
+      + '<th>Nombre</th><th>DNI</th><th>Codigo</th><th>Ciclo</th><th>Correo</th>'
+      + '</tr></thead><tbody>';
+    data.forEach(function(e){
+      html += '<tr>'
+        + '<td><span class="text-bold">' + e.nombre + ' ' + e.apellido + '</span></td>'
+        + '<td class="text-muted">' + e.dni + '</td>'
+        + '<td>' + e.codigo + '</td>'
+        + '<td>' + e.ciclo + '&deg; ciclo</td>'
+        + '<td class="text-muted">' + e.correo + '</td>'
+        + '</tr>';
+    });
+    html += '</tbody></table></div>';
+    body.innerHTML = html;
+  }
+
+  /* ── Render: Grupos — nivel 1: tarjetas por curso ── */
+  function renderGrupos(data, body) {
+    _gruposData = data;
+    // agrupar por curso
+    var mapa = {};
+    data.forEach(function(g){
+      if (!mapa[g.nombre_curso]) mapa[g.nombre_curso] = { nombre: g.nombre_curso, color: g.color, grupos: [] };
+      mapa[g.nombre_curso].grupos.push(g);
+    });
+    _cursosGrupos = Object.values(mapa);
+    renderCursosDeGrupos(body);
+  }
+
+  function renderCursosDeGrupos(body) {
+    if (!body) body = document.getElementById('modal-body-grupos');
+    document.getElementById('modal-title-grupos').innerHTML =
+      '<i class="ti ti-layout-grid" style="margin-right:6px;"></i>Grupos participantes';
+    if (!_cursosGrupos || !_cursosGrupos.length) {
+      body.innerHTML = '<div class="modal-empty">Sin grupos registrados.</div>';
+      return;
+    }
+    var html = '<div class="curso-cards-grid">';
+    _cursosGrupos.forEach(function(c, i){
+      var color = c.color || '#2563eb';
+      var n = c.grupos.length;
+      html += '<div class="curso-card" style="border-top:4px solid ' + color + ';" onclick="verGruposDeCurso(' + i + ')">'
+        + '<div class="curso-card-name">' + c.nombre + '</div>'
+        + '<div class="curso-card-count" style="color:' + color + ';">' + n + '</div>'
+        + '<div class="curso-card-label">grupo' + (n !== 1 ? 's' : '') + '</div>'
+        + '</div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+  }
+
+  /* ── Nivel 2: grupos del curso seleccionado (con paginado) ── */
+  function verGruposDeCurso(cursoIdx) {
+    _cursoGrupoIdx = cursoIdx;
+    _gruposPag = 0;
+    _renderGruposDeCurso();
+  }
+
+  function _renderGruposDeCurso(body) {
+    if (!body) body = document.getElementById('modal-body-grupos');
+    var c     = _cursosGrupos[_cursoGrupoIdx];
+    var color = c.color || '#2563eb';
+    document.getElementById('modal-title-grupos').innerHTML =
+      '<i class="ti ti-layout-grid" style="margin-right:6px;color:' + color + ';"></i>' + c.nombre;
+    var grupos = c.grupos;
+    var total  = grupos.length;
+    var totalP = Math.ceil(total / _GRUPOS_PP);
+    var ini    = _gruposPag * _GRUPOS_PP;
+    var pagina = grupos.slice(ini, Math.min(ini + _GRUPOS_PP, total));
+
+    var html = '<button onclick="renderCursosDeGrupos()" class="btn btn-ghost btn-sm" style="margin-bottom:14px;">'
+      + '<i class="ti ti-arrow-left"></i> Volver a cursos</button>'
+      + '<div class="curso-cards-grid">';
+    pagina.forEach(function(g){
+      var idx = _gruposData.indexOf(g);
+      var n   = g.miembros.length;
+      var badge = g.estado_proyecto
+        ? '<span class="badge ' + badgeClass(g.estado_proyecto) + '" style="font-size:10px;">' + g.estado_proyecto + '</span>' : '';
+      html += '<div class="curso-card" style="border-top:4px solid ' + color + ';" onclick="renderGrupoDetalle(' + idx + ')">'
+        + '<div class="curso-card-name">Mesa ' + g.num_mesa + '</div>'
+        + '<div style="font-size:12px;font-weight:600;margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (g.nombre_proyecto || 'Sin proyecto') + '</div>'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">'
+        + '<span style="font-size:11px;color:var(--muted);">' + n + ' integrante' + (n !== 1 ? 's' : '') + '</span>'
+        + badge + '</div></div>';
+    });
+    html += '</div>';
+    if (totalP > 1) {
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;">'
+        + '<button onclick="cambiarPagGrupos(-1)" class="btn btn-outline btn-sm"' + (_gruposPag === 0 ? ' disabled' : '') + '><i class="ti ti-chevron-left"></i> Anterior</button>'
+        + '<span style="font-size:13px;color:var(--muted);">Pág. ' + (_gruposPag+1) + ' de ' + totalP + ' &middot; ' + total + ' grupos</span>'
+        + '<button onclick="cambiarPagGrupos(1)" class="btn btn-outline btn-sm"' + (_gruposPag >= totalP-1 ? ' disabled' : '') + '>Siguiente <i class="ti ti-chevron-right"></i></button>'
+        + '</div>';
+    }
+    body.innerHTML = html;
+  }
+
+  function cambiarPagGrupos(d) {
+    var totalP = Math.ceil(_cursosGrupos[_cursoGrupoIdx].grupos.length / _GRUPOS_PP);
+    _gruposPag = Math.max(0, Math.min(_gruposPag + d, totalP - 1));
+    _renderGruposDeCurso();
+  }
+
+  /* ── Nivel 3: detalle del grupo ── */
+  function renderGrupoDetalle(idx) {
+    var g    = _gruposData[idx];
+    var body = document.getElementById('modal-body-grupos');
+    var color = g.color || '#2563eb';
+    document.getElementById('modal-title-grupos').innerHTML =
+      '<i class="ti ti-layout-grid" style="margin-right:6px;color:' + color + ';"></i>Mesa ' + g.num_mesa + ' &mdash; ' + (g.nombre_proyecto || 'Sin proyecto');
+    var miembrosHtml = g.miembros.map(function(m){
+      var initials = ((m.nombre||'')[0]||'') + ((m.apellido||'')[0]||'');
+      var avatarCls = m.es_lider ? 'avatar avatar-lider' : 'avatar';
+      var liderBadge = m.es_lider
+        ? ' <span class="badge badge-info" style="font-size:10px;padding:2px 7px;">Lider</span>' : '';
+      return '<div class="member-row">'
+        + '<div class="' + avatarCls + '">' + initials.toUpperCase() + '</div>'
+        + '<div><div class="member-name">' + m.nombre + ' ' + m.apellido + liderBadge + '</div>'
+        + '<div class="member-code">' + m.codigo + ' &middot; ' + m.ciclo + '&deg; ciclo &middot; ' + m.correo + '</div>'
+        + '</div></div>';
+    }).join('');
+    var estadoBadge = g.estado_proyecto
+      ? '<span class="badge ' + badgeClass(g.estado_proyecto) + '">' + g.estado_proyecto + '</span>' : '';
+    body.innerHTML = '<button onclick="_renderGruposDeCurso()" class="btn btn-ghost btn-sm" style="margin-bottom:14px;">'
+      + '<i class="ti ti-arrow-left"></i> Volver a grupos</button>'
+      + '<div class="card" style="border-top:4px solid ' + color + ';padding:16px 18px;">'
+      + '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;gap:12px;">'
+      + '<div><div class="card-title" style="margin-bottom:2px;">Mesa ' + g.num_mesa + ' &mdash; ' + (g.nombre_proyecto || 'Sin proyecto') + '</div>'
+      + '<div class="text-muted text-sm">' + g.nombre_curso + ' &middot; ' + g.ubicacion + '</div>'
+      + '</div>' + estadoBadge + '</div>'
+      + '<div class="members-list">' + miembrosHtml + '</div></div>';
+  }
+
+  /* ── Render: Cursos (primer nivel proyectos) ── */
+  function renderCursos(data, body) {
+    document.getElementById('modal-title-proyectos').innerHTML =
+      '<i class="ti ti-folder" style="margin-right:6px;"></i>Proyectos por curso';
+    if (!data.length) {
+      body.innerHTML = '<div class="modal-empty">Sin proyectos registrados.</div>';
+      return;
+    }
+    var html = '<div class="curso-cards-grid">';
+    data.forEach(function(c, i){
+      var color = c.color || '#2563eb';
+      var n = c.proyectos.length;
+      html += '<div class="curso-card" style="border-top:4px solid ' + color + ';" onclick="renderProyectosCurso(' + i + ')">'
+        + '<div class="curso-card-name">' + c.nombre_curso + '</div>'
+        + '<div class="curso-card-count" style="color:' + color + ';">' + n + '</div>'
+        + '<div class="curso-card-label">proyecto' + (n !== 1 ? 's' : '') + '</div>'
+        + '</div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+  }
+
+  /* ── Render: Proyectos de un curso (segundo nivel) ── */
+  function renderProyectosCurso(idx) {
+    var c    = _cursosData[idx];
+    var body = document.getElementById('modal-body-proyectos');
+    var color = c.color || '#2563eb';
+
+    document.getElementById('modal-title-proyectos').innerHTML =
+      '<i class="ti ti-folder" style="margin-right:6px;color:' + color + ';"></i>' + c.nombre_curso;
+
+    var html = '<button onclick="renderCursos(_cursosData, document.getElementById(\'modal-body-proyectos\'))"'
+      + ' class="btn btn-ghost btn-sm" style="margin-bottom:14px;">'
+      + '<i class="ti ti-arrow-left"></i> Volver a cursos</button>';
+
+    html += '<div class="project-cards">';
+    c.proyectos.forEach(function(p){
+      var techs = (p.tecnologias_usadas || '').split(',')
+        .map(function(t){ return '<span class="chip">' + t.trim() + '</span>'; }).join('');
+      html += '<div class="project-card" style="border-left:4px solid ' + color + ';cursor:default;">'
+        + '<div class="project-card-header">'
+        + '<div class="project-card-title">' + p.nombre_proyecto + '</div>'
+        + '<span class="badge ' + badgeClass(p.estado) + '">' + p.estado + '</span>'
+        + '</div>'
+        + '<div class="project-card-meta">'
+        + '<span><i class="ti ti-table"></i> Mesa ' + p.num_mesa + '</span>'
+        + '<span><i class="ti ti-map-pin"></i> ' + p.ubicacion + '</span>'
+        + '</div>'
+        + (p.descripcion ? '<p style="font-size:13px;color:var(--muted);margin-bottom:8px;">' + p.descripcion + '</p>' : '')
+        + (techs ? '<div class="tech-chips">' + techs + '</div>' : '')
+        + '</div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+  }
 </script>
 {% endblock %}

@@ -1,7 +1,7 @@
 import json
 import bcrypt
 from datetime import date
-from flask import Blueprint, render_template, request, session, redirect, url_for, flash
+from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify
 from auth import role_required
 from database import query
 
@@ -78,6 +78,110 @@ def dashboard():
                            tareas_resumen=tareas_resumen,
                            chart_cursos=json.dumps(chart_cursos, default=str),
                            chart_estados=json.dumps(chart_estados, default=str))
+
+
+@secretaria_bp.route('/api/estudiantes')
+@role_required('secretaria')
+def api_estudiantes():
+    evento = _get_evento(session['role_id'])
+    if not evento:
+        return jsonify([])
+    rows = query(
+        "SELECT pe.nombre, pe.apellido, pe.correo, pe.dni, es.codigo, es.ciclo "
+        "FROM participacion pa "
+        "JOIN estudiante es ON pa.id_estudiante = es.id_estudiante "
+        "JOIN persona pe ON es.id_persona = pe.id_persona "
+        "WHERE pa.id_evento = %s "
+        "ORDER BY pe.apellido, pe.nombre",
+        (evento['id_evento'],))
+    return jsonify(rows)
+
+
+@secretaria_bp.route('/api/grupos')
+@role_required('secretaria')
+def api_grupos():
+    evento = _get_evento(session['role_id'])
+    if not evento:
+        return jsonify([])
+    rows = query(
+        "SELECT g.id_grupo, c.nombre AS nombre_curso, c.color, e.num_mesa, e.ubicacion, "
+        "       p.nombre AS nombre_proyecto, p.estado AS estado_proyecto, "
+        "       pe.nombre, pe.apellido, pe.correo, pe.dni, es.codigo, es.ciclo, "
+        "       CASE WHEN g.id_lider = es.id_estudiante THEN 1 ELSE 0 END AS es_lider "
+        "FROM grupo g "
+        "JOIN curso c ON g.id_curso = c.id_curso "
+        "JOIN espacio e ON g.id_espacio = e.id_espacio "
+        "LEFT JOIN proyecto p ON g.id_grupo = p.id_grupo "
+        "JOIN estudiante_grupo eg ON g.id_grupo = eg.id_grupo "
+        "JOIN estudiante es ON eg.id_estudiante = es.id_estudiante "
+        "JOIN persona pe ON es.id_persona = pe.id_persona "
+        "WHERE g.id_evento = %s "
+        "ORDER BY g.id_grupo, es_lider DESC, pe.apellido",
+        (evento['id_evento'],))
+    grupos = {}
+    for r in rows:
+        gid = r['id_grupo']
+        if gid not in grupos:
+            grupos[gid] = {
+                'id_grupo': gid,
+                'nombre_curso': r['nombre_curso'],
+                'color': r['color'],
+                'num_mesa': r['num_mesa'],
+                'ubicacion': r['ubicacion'],
+                'nombre_proyecto': r['nombre_proyecto'],
+                'estado_proyecto': r['estado_proyecto'],
+                'miembros': []
+            }
+        grupos[gid]['miembros'].append({
+            'nombre': r['nombre'],
+            'apellido': r['apellido'],
+            'correo': r['correo'],
+            'dni': r['dni'],
+            'codigo': r['codigo'],
+            'ciclo': r['ciclo'],
+            'es_lider': bool(r['es_lider'])
+        })
+    return jsonify(list(grupos.values()))
+
+
+@secretaria_bp.route('/api/proyectos')
+@role_required('secretaria')
+def api_proyectos():
+    evento = _get_evento(session['role_id'])
+    if not evento:
+        return jsonify([])
+    rows = query(
+        "SELECT c.id_curso, c.nombre AS nombre_curso, c.color, "
+        "       p.id_proyecto, p.nombre AS nombre_proyecto, p.estado, "
+        "       p.descripcion, p.tecnologias_usadas, "
+        "       g.id_grupo, e.num_mesa, e.ubicacion "
+        "FROM proyecto p "
+        "JOIN grupo g ON p.id_grupo = g.id_grupo "
+        "JOIN curso c ON g.id_curso = c.id_curso "
+        "JOIN espacio e ON g.id_espacio = e.id_espacio "
+        "WHERE g.id_evento = %s "
+        "ORDER BY c.nombre, p.nombre",
+        (evento['id_evento'],))
+    cursos = {}
+    for r in rows:
+        cid = r['id_curso']
+        if cid not in cursos:
+            cursos[cid] = {
+                'id_curso': cid,
+                'nombre_curso': r['nombre_curso'],
+                'color': r['color'],
+                'proyectos': []
+            }
+        cursos[cid]['proyectos'].append({
+            'id_proyecto': r['id_proyecto'],
+            'nombre_proyecto': r['nombre_proyecto'],
+            'estado': r['estado'],
+            'descripcion': r['descripcion'],
+            'tecnologias_usadas': r['tecnologias_usadas'],
+            'num_mesa': r['num_mesa'],
+            'ubicacion': r['ubicacion'],
+        })
+    return jsonify(list(cursos.values()))
 
 
 @secretaria_bp.route('/tareas')

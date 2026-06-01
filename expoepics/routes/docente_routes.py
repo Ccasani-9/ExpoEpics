@@ -333,6 +333,366 @@ def evaluaciones():
                            sin_evaluar=sin_evaluar)
 
 
+@docente_bp.route('/organizar-grupos')
+@role_required('docente')
+def organizar_grupos():
+    id_curso = request.args.get('curso', type=int)
+    cursos = query(
+        "SELECT id_curso, nombre, ciclo, color FROM curso WHERE id_docente=%s ORDER BY nombre",
+        (session['role_id'],))
+    if not cursos:
+        flash('No tienes cursos asignados.', 'warning')
+        return redirect(url_for('docente.registro_estudiantes'))
+    if not id_curso:
+        id_curso = cursos[0]['id_curso']
+    curso_actual = next((c for c in cursos if c['id_curso'] == id_curso), None)
+    if not curso_actual:
+        flash('Curso no válido.', 'danger')
+        return redirect(url_for('docente.registro_estudiantes'))
+    evento = _get_evento()
+    return render_template('docente/organizar_grupos.html',
+                           cursos=cursos, curso_actual=curso_actual, evento=evento)
+
+
+@docente_bp.route('/api/organizar-grupos')
+@role_required('docente')
+def api_organizar_grupos():
+    id_curso = request.args.get('curso', type=int)
+    curso = query(
+        "SELECT id_curso, color FROM curso WHERE id_curso=%s AND id_docente=%s",
+        (id_curso, session['role_id']), fetch_one=True)
+    if not curso:
+        return jsonify({'error': 'Curso no válido'}), 403
+    evento = _get_evento()
+    if not evento:
+        return jsonify({'pool': [], 'grupos': [], 'espacios': []})
+    id_evento = evento['id_evento']
+
+    todos = query(
+        "SELECT es.id_estudiante, p.nombre, p.apellido "
+        "FROM inscripcion_curso ic "
+        "JOIN estudiante es ON ic.id_estudiante = es.id_estudiante "
+        "JOIN persona p ON es.id_persona = p.id_persona "
+        "WHERE ic.id_curso = %s ORDER BY p.apellido, p.nombre",
+        (id_curso,))
+
+    en_grupo = query(
+        "SELECT eg.id_estudiante FROM estudiante_grupo eg "
+        "JOIN grupo g ON eg.id_grupo = g.id_grupo "
+        "WHERE g.id_curso = %s AND g.id_evento = %s",
+        (id_curso, id_evento))
+    ids_asignados = {r['id_estudiante'] for r in en_grupo}
+
+    pool = [{'id_estudiante': e['id_estudiante'],
+             'nombre': e['nombre'], 'apellido': e['apellido']}
+            for e in todos if e['id_estudiante'] not in ids_asignados]
+
+    grupos_rows = query(
+        "SELECT g.id_grupo, g.nombre, g.color, e.num_mesa, e.ubicacion, e.id_espacio "
+        "FROM grupo g JOIN espacio e ON g.id_espacio = e.id_espacio "
+        "WHERE g.id_curso = %s AND g.id_evento = %s ORDER BY g.id_grupo",
+        (id_curso, id_evento))
+
+    grupos = []
+    for g in grupos_rows:
+        miembros = query(
+            "SELECT es.id_estudiante, p.nombre, p.apellido "
+            "FROM estudiante_grupo eg "
+            "JOIN estudiante es ON eg.id_estudiante = es.id_estudiante "
+            "JOIN persona p ON es.id_persona = p.id_persona "
+            "WHERE eg.id_grupo = %s ORDER BY p.apellido",
+            (g['id_grupo'],))
+        grupos.append({
+            'id_grupo':   g['id_grupo'],
+            'nombre':     g['nombre'] or ('Grupo ' + str(g['id_grupo'])),
+            'color':      g['color']  or curso['color'],
+            'num_mesa':   g['num_mesa'],
+            'ubicacion':  g['ubicacion'],
+            'id_espacio': g['id_espacio'],
+            'miembros':   [{'id_estudiante': m['id_estudiante'],
+                            'nombre': m['nombre'], 'apellido': m['apellido']}
+                           for m in miembros]
+        })
+
+    espacios = query(
+        "SELECT e.id_espacio, e.num_mesa, e.ubicacion FROM espacio e "
+        "WHERE e.id_evento = %s "
+        "AND e.id_espacio NOT IN (SELECT id_espacio FROM grupo WHERE id_evento = %s) "
+        "ORDER BY e.num_mesa",
+        (id_evento, id_evento))
+
+    return jsonify({
+        'pool':    pool,
+        'grupos':  grupos,
+        'espacios': [{'id_espacio': e['id_espacio'],
+                      'num_mesa':   e['num_mesa'],
+                      'ubicacion':  e['ubicacion']} for e in espacios]
+    })
+
+
+@docente_bp.route('/organizar-grupos/crear', methods=['POST'])
+@role_required('docente')
+def crear_grupo():
+    data       = request.get_json()
+    id_curso   = data.get('id_curso')
+    nombre     = (data.get('nombre') or '').strip()
+    color      = data.get('color', '#2563eb')
+    id_espacio = data.get('id_espacio')
+
+    curso = query("SELECT id_curso FROM curso WHERE id_curso=%s AND id_docente=%s",
+                  (id_curso, session['role_id']), fetch_one=True)
+    if not curso:
+        return jsonify({'error': 'Curso no válido'}), 403
+    if not nombre or not id_espacio:
+        return jsonify({'error': 'Nombre y espacio son obligatorios'}), 400
+
+    evento = _get_evento()
+    if not evento:
+        return jsonify({'error': 'No hay evento activo'}), 400
+
+    tomado = query("SELECT id_grupo FROM grupo WHERE id_espacio=%s AND id_evento=%s",
+                   (id_espacio, evento['id_evento']), fetch_one=True)
+    if tomado:
+        return jsonify({'error': 'Ese espacio ya está ocupado por otro grupo'}), 400
+
+    espacio = query("SELECT id_espacio, num_mesa, ubicacion FROM espacio "
+                    "WHERE id_espacio=%s AND id_evento=%s",
+                    (id_espacio, evento['id_evento']), fetch_one=True)
+    if not espacio:
+        return jsonify({'error': 'Espacio no válido'}), 400
+
+    id_grupo = query(
+        "INSERT INTO grupo (id_curso, id_evento, id_espacio, estado, nombre, color) "
+        "VALUES (%s,%s,%s,'Postulado',%s,%s)",
+        (id_curso, evento['id_evento'], id_espacio, nombre, color), commit=True)
+
+    return jsonify({
+        'id_grupo':   id_grupo,
+        'nombre':     nombre,
+        'color':      color,
+        'num_mesa':   espacio['num_mesa'],
+        'ubicacion':  espacio['ubicacion'],
+        'id_espacio': id_espacio,
+        'miembros':   []
+    })
+
+
+@docente_bp.route('/organizar-grupos/eliminar', methods=['POST'])
+@role_required('docente')
+def eliminar_grupo():
+    data     = request.get_json()
+    id_grupo = data.get('id_grupo')
+
+    grupo = query(
+        "SELECT g.id_grupo, g.id_espacio, e.num_mesa, e.ubicacion "
+        "FROM grupo g "
+        "JOIN curso c  ON g.id_curso  = c.id_curso "
+        "JOIN espacio e ON g.id_espacio = e.id_espacio "
+        "WHERE g.id_grupo=%s AND c.id_docente=%s",
+        (id_grupo, session['role_id']), fetch_one=True)
+    if not grupo:
+        return jsonify({'error': 'Grupo no encontrado'}), 404
+
+    query("DELETE FROM evaluacion WHERE id_proyecto IN "
+          "(SELECT id_proyecto FROM proyecto WHERE id_grupo=%s)",
+          (id_grupo,), commit=True)
+    query("DELETE FROM proyecto WHERE id_grupo=%s", (id_grupo,), commit=True)
+    query("DELETE FROM estudiante_grupo WHERE id_grupo=%s", (id_grupo,), commit=True)
+    query("DELETE FROM grupo WHERE id_grupo=%s", (id_grupo,), commit=True)
+
+    return jsonify({
+        'ok': True,
+        'espacio_liberado': {
+            'id_espacio': grupo['id_espacio'],
+            'num_mesa':   grupo['num_mesa'],
+            'ubicacion':  grupo['ubicacion']
+        }
+    })
+
+
+@docente_bp.route('/organizar-grupos/mover', methods=['POST'])
+@role_required('docente')
+def mover_estudiante():
+    data          = request.get_json()
+    id_estudiante = data.get('id_estudiante')
+    id_grupo_dest = data.get('id_grupo')
+    id_curso      = data.get('id_curso')
+
+    evento = _get_evento()
+    if not evento:
+        return jsonify({'error': 'No hay evento activo'}), 400
+
+    en_curso = query(
+        "SELECT id_inscripcion FROM inscripcion_curso "
+        "WHERE id_estudiante=%s AND id_curso=%s",
+        (id_estudiante, id_curso), fetch_one=True)
+    if not en_curso:
+        return jsonify({'error': 'Estudiante no pertenece a este curso'}), 403
+
+    query(
+        "DELETE FROM estudiante_grupo WHERE id_estudiante=%s "
+        "AND id_grupo IN (SELECT id_grupo FROM grupo WHERE id_curso=%s AND id_evento=%s)",
+        (id_estudiante, id_curso, evento['id_evento']), commit=True)
+
+    if id_grupo_dest:
+        grupo_valido = query(
+            "SELECT g.id_grupo FROM grupo g "
+            "JOIN curso c ON g.id_curso = c.id_curso "
+            "WHERE g.id_grupo=%s AND c.id_docente=%s AND g.id_evento=%s",
+            (id_grupo_dest, session['role_id'], evento['id_evento']), fetch_one=True)
+        if not grupo_valido:
+            return jsonify({'error': 'Grupo no válido'}), 403
+        query("INSERT IGNORE INTO estudiante_grupo (id_estudiante, id_grupo) VALUES (%s,%s)",
+              (id_estudiante, id_grupo_dest), commit=True)
+
+    return jsonify({'ok': True})
+
+
+@docente_bp.route('/registro-estudiantes')
+@role_required('docente')
+def registro_estudiantes():
+    cursos = query(
+        "SELECT id_curso, nombre, ciclo, color FROM curso WHERE id_docente=%s ORDER BY nombre",
+        (session['role_id'],))
+    return render_template('docente/registro_estudiantes.html', cursos=cursos)
+
+
+@docente_bp.route('/registro-estudiantes/ingresar')
+@role_required('docente')
+def ingresar_estudiantes():
+    id_curso = request.args.get('curso', type=int)
+    cursos = query(
+        "SELECT id_curso, nombre, ciclo, color FROM curso WHERE id_docente=%s ORDER BY nombre",
+        (session['role_id'],))
+
+    if not cursos:
+        flash('No tienes cursos asignados.', 'warning')
+        return redirect(url_for('docente.registro_estudiantes'))
+
+    if not id_curso:
+        id_curso = cursos[0]['id_curso']
+
+    curso_actual = next((c for c in cursos if c['id_curso'] == id_curso), None)
+    if not curso_actual:
+        flash('Curso no válido.', 'danger')
+        return redirect(url_for('docente.registro_estudiantes'))
+
+    estudiantes = query(
+        "SELECT ic.id_inscripcion, p.dni, p.nombre, p.apellido, p.correo, "
+        "es.codigo, es.ciclo, es.id_estudiante "
+        "FROM inscripcion_curso ic "
+        "JOIN estudiante es ON ic.id_estudiante = es.id_estudiante "
+        "JOIN persona p ON es.id_persona = p.id_persona "
+        "WHERE ic.id_curso = %s "
+        "ORDER BY p.apellido, p.nombre",
+        (id_curso,))
+
+    return render_template('docente/ingresar_estudiantes.html',
+                           cursos=cursos,
+                           curso_actual=curso_actual,
+                           estudiantes=estudiantes)
+
+
+@docente_bp.route('/registro-estudiantes/agregar', methods=['POST'])
+@role_required('docente')
+def agregar_estudiante():
+    id_curso = request.form.get('id_curso', type=int)
+    dni      = request.form.get('dni', '').strip()
+    nombre   = request.form.get('nombre', '').strip()
+    apellido = request.form.get('apellido', '').strip()
+    correo   = request.form.get('correo', '').strip().lower()
+    codigo   = request.form.get('codigo', '').strip()
+    ciclo    = request.form.get('ciclo', type=int)
+
+    curso = query(
+        "SELECT id_curso FROM curso WHERE id_curso=%s AND id_docente=%s",
+        (id_curso, session['role_id']), fetch_one=True)
+    if not curso:
+        flash('Curso no válido.', 'danger')
+        return redirect(url_for('docente.registro_estudiantes'))
+
+    if not all([dni, nombre, apellido, correo, codigo, ciclo]):
+        flash('Todos los campos son obligatorios.', 'danger')
+        return redirect(url_for('docente.ingresar_estudiantes', curso=id_curso))
+
+    if len(dni) != 8 or not dni.isdigit():
+        flash('El DNI debe tener exactamente 8 dígitos numéricos.', 'danger')
+        return redirect(url_for('docente.ingresar_estudiantes', curso=id_curso))
+
+    codigo_dup = query(
+        "SELECT id_estudiante FROM estudiante WHERE codigo=%s", (codigo,), fetch_one=True)
+    if codigo_dup:
+        flash('Ya existe un estudiante con ese código universitario.', 'danger')
+        return redirect(url_for('docente.ingresar_estudiantes', curso=id_curso))
+
+    persona_existente = query(
+        "SELECT id_persona FROM persona WHERE dni=%s OR correo=%s",
+        (dni, correo), fetch_one=True)
+
+    if persona_existente:
+        id_persona = persona_existente['id_persona']
+        est_existente = query(
+            "SELECT id_estudiante FROM estudiante WHERE id_persona=%s",
+            (id_persona,), fetch_one=True)
+        if est_existente:
+            id_estudiante = est_existente['id_estudiante']
+        else:
+            query("INSERT INTO estudiante (id_persona, codigo, ciclo) VALUES (%s,%s,%s)",
+                  (id_persona, codigo, ciclo), commit=True)
+            est = query("SELECT id_estudiante FROM estudiante WHERE id_persona=%s",
+                        (id_persona,), fetch_one=True)
+            id_estudiante = est['id_estudiante']
+    else:
+        temp_pass = bcrypt.hashpw(dni.encode(), bcrypt.gensalt()).decode()
+        query(
+            "INSERT INTO persona (dni, nombre, apellido, correo, contrasena, contrasena_temporal) "
+            "VALUES (%s,%s,%s,%s,%s,%s)",
+            (dni, nombre, apellido, correo, temp_pass, True), commit=True)
+        persona_nueva = query(
+            "SELECT id_persona FROM persona WHERE dni=%s", (dni,), fetch_one=True)
+        id_persona = persona_nueva['id_persona']
+        query("INSERT INTO estudiante (id_persona, codigo, ciclo) VALUES (%s,%s,%s)",
+              (id_persona, codigo, ciclo), commit=True)
+        est = query("SELECT id_estudiante FROM estudiante WHERE id_persona=%s",
+                    (id_persona,), fetch_one=True)
+        id_estudiante = est['id_estudiante']
+
+    ya_inscrito = query(
+        "SELECT id_inscripcion FROM inscripcion_curso "
+        "WHERE id_estudiante=%s AND id_curso=%s",
+        (id_estudiante, id_curso), fetch_one=True)
+
+    if ya_inscrito:
+        flash('El estudiante ya está registrado en este curso.', 'warning')
+    else:
+        query("INSERT INTO inscripcion_curso (id_estudiante, id_curso) VALUES (%s,%s)",
+              (id_estudiante, id_curso), commit=True)
+        flash(f'{nombre} {apellido} registrado exitosamente.', 'success')
+
+    return redirect(url_for('docente.ingresar_estudiantes', curso=id_curso))
+
+
+@docente_bp.route('/registro-estudiantes/eliminar/<int:id_inscripcion>', methods=['POST'])
+@role_required('docente')
+def eliminar_estudiante(id_inscripcion):
+    inscripcion = query(
+        "SELECT ic.id_inscripcion, ic.id_curso "
+        "FROM inscripcion_curso ic "
+        "JOIN curso c ON ic.id_curso = c.id_curso "
+        "WHERE ic.id_inscripcion=%s AND c.id_docente=%s",
+        (id_inscripcion, session['role_id']), fetch_one=True)
+
+    if not inscripcion:
+        flash('Registro no encontrado.', 'danger')
+        return redirect(url_for('docente.registro_estudiantes'))
+
+    id_curso = inscripcion['id_curso']
+    query("DELETE FROM inscripcion_curso WHERE id_inscripcion=%s",
+          (id_inscripcion,), commit=True)
+    flash('Estudiante eliminado del registro del curso.', 'success')
+    return redirect(url_for('docente.ingresar_estudiantes', curso=id_curso))
+
+
 @docente_bp.route('/cuenta', methods=['GET', 'POST'])
 @role_required('docente')
 def cuenta():

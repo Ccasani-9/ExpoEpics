@@ -1,0 +1,592 @@
+{% extends 'base.html' %}
+{% block title %}Ingresar Estudiantes{% endblock %}
+{% block page_title %}Registro de Estudiantes{% endblock %}
+
+{% block content %}
+
+<!-- Breadcrumb -->
+<div style="display:flex; align-items:center; gap:8px; margin-bottom:22px; font-size:13px; color:var(--muted);">
+  <a href="{{ url_for('docente.registro_estudiantes') }}" style="color:var(--blue); font-weight:500;">
+    <i class="ti ti-users-plus"></i> Registro de Estudiantes
+  </a>
+  <i class="ti ti-chevron-right" style="font-size:14px;"></i>
+  <span style="color:var(--text); font-weight:600;">Ingresar Estudiantes</span>
+</div>
+
+<!-- Selector de curso (si tiene más de uno) -->
+{% if cursos | length > 1 %}
+<div class="card" style="margin-bottom:24px; padding:16px 20px;">
+  <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+    <span style="font-size:13px; font-weight:600; color:var(--muted);">Selecciona el curso:</span>
+    {% for c in cursos %}
+    <a href="{{ url_for('docente.ingresar_estudiantes', curso=c.id_curso) }}"
+       style="display:inline-flex; align-items:center; gap:7px; padding:6px 14px; border-radius:20px; font-size:13px; font-weight:600; text-decoration:none; border: 2px solid {{ c.color if c.id_curso == curso_actual.id_curso else 'var(--border)' }}; background: {{ 'rgba(37,99,235,.07)' if c.id_curso == curso_actual.id_curso else 'transparent' }}; color: {{ c.color if c.id_curso == curso_actual.id_curso else 'var(--muted)' }}; transition: all .15s;">
+      <div style="width:8px; height:8px; border-radius:50%; background:{{ c.color }};"></div>
+      {{ c.nombre }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Encabezado de sección -->
+<div class="section-header" style="margin-bottom:20px;">
+  <div>
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+      <div style="width:12px; height:12px; border-radius:50%; background:{{ curso_actual.color }};"></div>
+      <div class="section-title">{{ curso_actual.nombre }}</div>
+      <span class="badge badge-gray">Ciclo {{ curso_actual.ciclo }}</span>
+    </div>
+    <div class="section-subtitle">
+      {{ estudiantes | length }} estudiante{{ 's' if estudiantes | length != 1 else '' }} registrado{{ 's' if estudiantes | length != 1 else '' }}
+    </div>
+  </div>
+  <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+    <!-- Toggle vista -->
+    {% if estudiantes %}
+    <div class="view-toggle" id="view-toggle">
+      <button class="view-btn active" id="btn-vista-tarjetas" onclick="cambiarVista('tarjetas')" title="Vista tarjetas">
+        <i class="ti ti-layout-grid"></i>
+      </button>
+      <button class="view-btn" id="btn-vista-tabla" onclick="cambiarVista('tabla')" title="Vista tabla">
+        <i class="ti ti-table"></i>
+      </button>
+    </div>
+    {% endif %}
+    <button class="btn btn-danger btn-sm" id="btn-modo-eliminar" onclick="toggleModoEliminar()" {% if not estudiantes %}disabled{% endif %}>
+      <i class="ti ti-trash"></i> Eliminar Estudiantes
+    </button>
+    <button class="btn btn-primary" onclick="abrirModalAgregar()">
+      <i class="ti ti-user-plus"></i> Agregar Estudiante
+    </button>
+  </div>
+</div>
+
+{% if estudiantes %}
+
+<!-- ══ VISTA TARJETAS ══ -->
+<div id="vista-tarjetas">
+  <div class="est-cards-grid" id="est-grid"></div>
+</div>
+
+<!-- ══ VISTA TABLA ══ -->
+<div id="vista-tabla" style="display:none;">
+  <div class="card" style="padding:0; overflow:hidden;">
+    <div class="table-wrap">
+      <table id="tabla-estudiantes">
+        <thead>
+          <tr>
+            <th style="width:40px;">#</th>
+            <th>Estudiante</th>
+            <th>DNI</th>
+            <th>Correo</th>
+            <th>Código</th>
+            <th>Ciclo</th>
+            <th style="width:60px;"></th>
+          </tr>
+        </thead>
+        <tbody id="tbody-estudiantes"></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="pag-tabla" class="paginador"></div>
+</div>
+
+<!-- Datos de estudiantes como JSON para paginación JS -->
+<script id="datos-estudiantes" type="application/json">
+[{% for est in estudiantes %}{"id":"{{ est.id_inscripcion }}","nombre":"{{ est.nombre | e }}","apellido":"{{ est.apellido | e }}","dni":"{{ est.dni }}","correo":"{{ est.correo | e }}","codigo":"{{ est.codigo | e }}","ciclo":{{ est.ciclo }},"color":"{{ curso_actual.color }}","del_url":"{{ url_for('docente.eliminar_estudiante', id_inscripcion=est.id_inscripcion) }}"}{% if not loop.last %},{% endif %}{% endfor %}]
+</script>
+
+{% else %}
+<!-- Estado vacío -->
+<div class="card" style="text-align:center; padding:56px 24px;">
+  <div style="font-size:48px; margin-bottom:12px; opacity:.3;">
+    <i class="ti ti-users"></i>
+  </div>
+  <div style="font-size:16px; font-weight:700; margin-bottom:6px; color:var(--text);">
+    Sin estudiantes registrados
+  </div>
+  <div style="font-size:13px; color:var(--muted); margin-bottom:20px;">
+    Aún no has registrado ningún estudiante en este curso.
+  </div>
+  <button class="btn btn-primary" onclick="abrirModalAgregar()">
+    <i class="ti ti-user-plus"></i> Agregar el primer estudiante
+  </button>
+</div>
+{% endif %}
+
+<!-- ══ MODAL: AGREGAR ESTUDIANTE ══ -->
+<div class="modal-overlay" id="modal-agregar" onclick="cerrarModalAgregar(event)">
+  <div class="modal-box" style="max-width:520px;">
+    <div class="modal-header">
+      <div class="modal-title">
+        <i class="ti ti-user-plus" style="margin-right:6px; color:var(--blue);"></i>
+        Agregar Estudiante
+      </div>
+      <button class="modal-close" onclick="cerrarModalAgregarBtn()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <form method="POST" action="{{ url_for('docente.agregar_estudiante') }}" id="form-agregar">
+        <input type="hidden" name="id_curso" value="{{ curso_actual.id_curso }}">
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+          <div class="form-group">
+            <label>DNI <span style="color:var(--danger);">*</span></label>
+            <input type="text" name="dni" placeholder="12345678" maxlength="8"
+                   pattern="[0-9]{8}" inputmode="numeric"
+                   oninput="this.value=this.value.replace(/\D/,'')"
+                   required>
+          </div>
+          <div class="form-group">
+            <label>Código universitario <span style="color:var(--danger);">*</span></label>
+            <input type="text" name="codigo" placeholder="2024001" required>
+          </div>
+          <div class="form-group">
+            <label>Nombre(s) <span style="color:var(--danger);">*</span></label>
+            <input type="text" name="nombre" placeholder="Juan Carlos" required>
+          </div>
+          <div class="form-group">
+            <label>Apellido(s) <span style="color:var(--danger);">*</span></label>
+            <input type="text" name="apellido" placeholder="García López" required>
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label>Correo institucional <span style="color:var(--danger);">*</span></label>
+            <input type="email" name="correo" placeholder="j.garcia@usmp.edu.pe" required>
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label>Ciclo <span style="color:var(--danger);">*</span></label>
+            <select name="ciclo" required>
+              <option value="">— Selecciona —</option>
+              {% for n in range(1, 11) %}
+              <option value="{{ n }}" {% if n == curso_actual.ciclo %}selected{% endif %}>
+                {{ n }}° ciclo
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-top:6px; padding:10px 12px; background:#f0f9ff; border-radius:8px; border:1px solid #bae6fd;">
+          <div style="display:flex; gap:7px; align-items:flex-start;">
+            <i class="ti ti-info-circle" style="color:#0284c7; font-size:15px; margin-top:1px; flex-shrink:0;"></i>
+            <span style="font-size:12px; color:#0369a1;">
+              La contraseña temporal del estudiante será su DNI. Deberá cambiarla en su primer inicio de sesión.
+            </span>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:18px; justify-content:flex-end;">
+          <button type="button" class="btn btn-outline" onclick="cerrarModalAgregarBtn()">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <i class="ti ti-user-plus"></i> Registrar estudiante
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_css %}
+<style>
+/* ── Toggle de vista ── */
+.view-toggle {
+  display: flex;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.view-btn {
+  padding: 6px 11px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 16px;
+  transition: background .15s, color .15s;
+  display: flex; align-items: center;
+}
+.view-btn:hover { background: var(--bg); color: var(--text); }
+.view-btn.active { background: var(--blue); color: #fff; }
+
+/* ── Grid de tarjetas ── */
+.est-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+/* ── Tarjeta de estudiante ── */
+.est-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  transition: box-shadow .15s, transform .15s;
+}
+.est-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,.07);
+  transform: translateY(-1px);
+}
+
+/* ── Botón eliminar (X) ── */
+.est-card-delete {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  transition: background .15s, transform .15s;
+  z-index: 2;
+}
+.est-card-delete:hover { background: #b91c1c; transform: scale(1.1); }
+.modo-eliminar .est-card-delete { display: flex; }
+
+/* ── Avatar ── */
+.est-avatar {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -.5px;
+}
+
+/* ── Nombre en tarjeta ── */
+.est-name {
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+/* ── Datos en tarjeta ── */
+.est-data { width: 100%; display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }
+.est-data-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.est-data-row i { font-size: 13px; flex-shrink: 0; }
+.est-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+
+/* ── Modo eliminar ── */
+.modo-eliminar .est-card { border-color: #fca5a5; background: #fff5f5; }
+
+/* ── Fila eliminar en tabla ── */
+.btn-del-tabla {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  display: none;
+  align-items: center;
+  gap: 4px;
+  transition: background .15s;
+}
+.btn-del-tabla:hover { background: #b91c1c; }
+.modo-eliminar .btn-del-tabla { display: inline-flex; }
+
+/* ── Paginador ── */
+.paginador {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.pag-info { font-size: 13px; color: var(--muted); }
+.pag-botones { display: flex; gap: 4px; align-items: center; }
+.pag-btn {
+  min-width: 34px; height: 34px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background .13s, border-color .13s, color .13s;
+  padding: 0 6px;
+}
+.pag-btn:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
+.pag-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+.pag-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── Select en el formulario ── */
+select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  background: #fff;
+  outline: none;
+  transition: border-color .15s;
+}
+select:focus { border-color: var(--blue); }
+
+/* ── Avatar pequeño para tabla ── */
+.av-sm {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800;
+  flex-shrink: 0;
+}
+</style>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+  /* ════════════════════════════════════════
+     DATOS
+  ════════════════════════════════════════ */
+  var ESTUDIANTES = [];
+  var rawEl = document.getElementById('datos-estudiantes');
+  if (rawEl) { try { ESTUDIANTES = JSON.parse(rawEl.textContent); } catch(e){} }
+
+  var POR_PAGINA   = 10;
+  var pagTarjetas  = 0;
+  var pagTabla     = 0;
+  var vistaActual  = 'tarjetas';
+  var modoEliminar = false;
+
+  /* ════════════════════════════════════════
+     MODAL AGREGAR
+  ════════════════════════════════════════ */
+  function abrirModalAgregar() {
+    document.getElementById('modal-agregar').classList.add('open');
+    document.querySelector('[name="dni"]').focus();
+  }
+  function cerrarModalAgregarBtn() {
+    document.getElementById('modal-agregar').classList.remove('open');
+    document.getElementById('form-agregar').reset();
+  }
+  function cerrarModalAgregar(e) {
+    if (e.target === document.getElementById('modal-agregar')) cerrarModalAgregarBtn();
+  }
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') cerrarModalAgregarBtn();
+  });
+
+  /* ════════════════════════════════════════
+     MODO ELIMINAR
+  ════════════════════════════════════════ */
+  function toggleModoEliminar() {
+    modoEliminar = !modoEliminar;
+    var grid = document.getElementById('est-grid');
+    var tbody = document.getElementById('tbody-estudiantes');
+    var btn  = document.getElementById('btn-modo-eliminar');
+    if (grid) {
+      if (modoEliminar) grid.classList.add('modo-eliminar');
+      else              grid.classList.remove('modo-eliminar');
+    }
+    if (tbody) {
+      if (modoEliminar) tbody.classList.add('modo-eliminar');
+      else              tbody.classList.remove('modo-eliminar');
+    }
+    if (modoEliminar) {
+      btn.innerHTML = '<i class="ti ti-x"></i> Cancelar';
+      btn.classList.remove('btn-danger'); btn.classList.add('btn-outline');
+    } else {
+      btn.innerHTML = '<i class="ti ti-trash"></i> Eliminar Estudiantes';
+      btn.classList.remove('btn-outline'); btn.classList.add('btn-danger');
+    }
+  }
+
+  function confirmarEliminar(nombre) {
+    return confirm('¿Eliminar a ' + nombre + ' del registro del curso?\n\nSu cuenta de usuario se mantendrá en el sistema.');
+  }
+
+  /* ════════════════════════════════════════
+     CAMBIAR VISTA
+  ════════════════════════════════════════ */
+  function cambiarVista(vista) {
+    vistaActual = vista;
+    document.getElementById('vista-tarjetas').style.display = vista === 'tarjetas' ? '' : 'none';
+    document.getElementById('vista-tabla').style.display    = vista === 'tabla'    ? '' : 'none';
+    document.getElementById('btn-vista-tarjetas').classList.toggle('active', vista === 'tarjetas');
+    document.getElementById('btn-vista-tabla').classList.toggle('active', vista === 'tabla');
+    if (vista === 'tarjetas') renderTarjetas();
+    else                      renderTabla(pagTabla);
+  }
+
+  /* ════════════════════════════════════════
+     PAGINADOR HELPER
+  ════════════════════════════════════════ */
+  function renderPaginador(contenedorId, paginaActual, total, onCambio) {
+    var totalPags = Math.ceil(total / POR_PAGINA);
+    var el = document.getElementById(contenedorId);
+    if (!el) return;
+    if (totalPags <= 1) { el.innerHTML = ''; return; }
+
+    var ini = paginaActual * POR_PAGINA + 1;
+    var fin = Math.min((paginaActual + 1) * POR_PAGINA, total);
+
+    var html = '<div class="pag-info">Mostrando <strong>' + ini + '–' + fin + '</strong> de <strong>' + total + '</strong> estudiantes</div>';
+    html += '<div class="pag-botones">';
+
+    /* Anterior */
+    html += '<button class="pag-btn" onclick="' + onCambio + '(' + (paginaActual - 1) + ')" '
+          + (paginaActual === 0 ? 'disabled' : '') + '>'
+          + '<i class="ti ti-chevron-left"></i></button>';
+
+    /* Números de página */
+    var rango = generarRango(paginaActual, totalPags);
+    rango.forEach(function(p) {
+      if (p === '...') {
+        html += '<span class="pag-btn" style="cursor:default; border:none; color:var(--muted);">…</span>';
+      } else {
+        html += '<button class="pag-btn' + (p === paginaActual ? ' active' : '') + '" onclick="' + onCambio + '(' + p + ')">' + (p + 1) + '</button>';
+      }
+    });
+
+    /* Siguiente */
+    html += '<button class="pag-btn" onclick="' + onCambio + '(' + (paginaActual + 1) + ')" '
+          + (paginaActual >= totalPags - 1 ? 'disabled' : '') + '>'
+          + '<i class="ti ti-chevron-right"></i></button>';
+
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  function generarRango(actual, total) {
+    if (total <= 7) {
+      var r = []; for (var i = 0; i < total; i++) r.push(i); return r;
+    }
+    var rango = [0];
+    if (actual > 2)       rango.push('...');
+    for (var p = Math.max(1, actual - 1); p <= Math.min(total - 2, actual + 1); p++) rango.push(p);
+    if (actual < total - 3) rango.push('...');
+    rango.push(total - 1);
+    return rango;
+  }
+
+  /* ════════════════════════════════════════
+     RENDER TARJETAS
+  ════════════════════════════════════════ */
+  function renderTarjetas() {
+    var grid = document.getElementById('est-grid');
+    if (!grid) return;
+    var modoClass = modoEliminar ? ' modo-eliminar' : '';
+    grid.className = 'est-cards-grid' + modoClass;
+
+    var html = '';
+    ESTUDIANTES.forEach(function(est) {
+      var initials = (est.nombre[0] || '').toUpperCase() + (est.apellido[0] || '').toUpperCase();
+      var bgColor  = est.color + '20';
+      html += '<div class="est-card">'
+        + '<form method="POST" action="' + est.del_url + '" onsubmit="return confirmarEliminar(\'' + escHtml(est.nombre + ' ' + est.apellido) + '\')">'
+        + '<button type="submit" class="est-card-delete" title="Eliminar"><i class="ti ti-x"></i></button>'
+        + '</form>'
+        + '<div class="est-avatar" style="background:' + bgColor + ';color:' + est.color + ';">' + initials + '</div>'
+        + '<div class="est-name">' + escHtml(est.nombre) + ' ' + escHtml(est.apellido) + '</div>'
+        + '<div class="est-data">'
+        + '<div class="est-data-row"><i class="ti ti-id-badge-2"></i><span>' + est.dni + '</span></div>'
+        + '<div class="est-data-row"><i class="ti ti-mail"></i><span class="est-truncate" title="' + escHtml(est.correo) + '">' + escHtml(est.correo) + '</span></div>'
+        + '<div class="est-data-row"><i class="ti ti-hash"></i><span>' + escHtml(est.codigo) + '</span></div>'
+        + '<div class="est-data-row"><i class="ti ti-calendar"></i><span>' + est.ciclo + '° ciclo</span></div>'
+        + '</div></div>';
+    });
+    grid.innerHTML = html;
+    /* sin paginador en tarjetas — scroll libre */
+  }
+
+  /* ════════════════════════════════════════
+     RENDER TABLA
+  ════════════════════════════════════════ */
+  function irPagTabla(p) {
+    pagTabla = p;
+    renderTabla(p);
+  }
+
+  function renderTabla(pag) {
+    var tbody = document.getElementById('tbody-estudiantes');
+    if (!tbody) return;
+    var inicio = pag * POR_PAGINA;
+    var pagina = ESTUDIANTES.slice(inicio, inicio + POR_PAGINA);
+
+    var modoClass = modoEliminar ? ' modo-eliminar' : '';
+    tbody.className = modoClass;
+
+    var html = '';
+    pagina.forEach(function(est, idx) {
+      var num      = inicio + idx + 1;
+      var initials = (est.nombre[0] || '').toUpperCase() + (est.apellido[0] || '').toUpperCase();
+      var bgColor  = est.color + '20';
+      html += '<tr>'
+        + '<td style="color:var(--muted); font-size:12px; text-align:center;">' + num + '</td>'
+        + '<td><div style="display:flex;align-items:center;gap:10px;">'
+        + '<div class="av-sm" style="background:' + bgColor + ';color:' + est.color + ';">' + initials + '</div>'
+        + '<span class="text-bold">' + escHtml(est.nombre) + ' ' + escHtml(est.apellido) + '</span>'
+        + '</div></td>'
+        + '<td class="text-muted">' + est.dni + '</td>'
+        + '<td class="text-muted">' + escHtml(est.correo) + '</td>'
+        + '<td>' + escHtml(est.codigo) + '</td>'
+        + '<td>' + est.ciclo + '° ciclo</td>'
+        + '<td><form method="POST" action="' + est.del_url + '" onsubmit="return confirmarEliminar(\'' + escHtml(est.nombre + ' ' + est.apellido) + '\')">'
+        + '<button type="submit" class="btn-del-tabla"><i class="ti ti-trash"></i> Eliminar</button>'
+        + '</form></td>'
+        + '</tr>';
+    });
+    tbody.innerHTML = html;
+    renderPaginador('pag-tabla', pag, ESTUDIANTES.length, 'irPagTabla');
+  }
+
+  /* ════════════════════════════════════════
+     UTILIDADES
+  ════════════════════════════════════════ */
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+      .replace(/'/g,'&#039;');
+  }
+
+  /* ════════════════════════════════════════
+     INIT
+  ════════════════════════════════════════ */
+  document.addEventListener('DOMContentLoaded', function() {
+    if (ESTUDIANTES.length) {
+      renderTarjetas();
+    }
+
+    /* Reabrir modal si hubo error de validación */
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+          {% if cat == 'danger' or cat == 'warning' %}
+            (function() {
+              var m = "{{ msg | e }}";
+              if (m.indexOf('eliminado') === -1) abrirModalAgregar();
+            })();
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  });
+</script>
+{% endblock %}

@@ -101,6 +101,8 @@ CREATE TABLE IF NOT EXISTS grupo (
   id_evento  INT NOT NULL,
   id_espacio INT NOT NULL,
   estado     VARCHAR(20) NOT NULL,
+  nombre     VARCHAR(80) NULL,
+  color      VARCHAR(20) NULL,
   id_lider   INT NULL,
   FOREIGN KEY (id_curso)   REFERENCES curso(id_curso),
   FOREIGN KEY (id_evento)  REFERENCES evento(id_evento),
@@ -178,7 +180,18 @@ CREATE TABLE IF NOT EXISTS administrador_evento (
   FOREIGN KEY (id_evento)        REFERENCES evento(id_evento)
 );
 
--- 18. TAREA
+-- 18. INSCRIPCION_CURSO
+CREATE TABLE IF NOT EXISTS inscripcion_curso (
+  id_inscripcion INT AUTO_INCREMENT PRIMARY KEY,
+  id_estudiante  INT NOT NULL,
+  id_curso       INT NOT NULL,
+  fecha_registro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_est_curso (id_estudiante, id_curso),
+  FOREIGN KEY (id_estudiante) REFERENCES estudiante(id_estudiante),
+  FOREIGN KEY (id_curso)      REFERENCES curso(id_curso)
+);
+
+-- 19. TAREA
 CREATE TABLE IF NOT EXISTS tarea (
   id_tarea          INT AUTO_INCREMENT PRIMARY KEY,
   id_secretaria     INT NOT NULL,

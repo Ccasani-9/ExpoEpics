@@ -45,6 +45,10 @@
            class="nav-item {% if request.endpoint == 'docente.evaluaciones' %}active{% endif %}">
           <i class="ti ti-star"></i> Evaluaciones
         </a>
+        <a href="{{ url_for('docente.registro_estudiantes') }}"
+           class="nav-item {% if 'registro' in (request.endpoint or '') or 'estudiante' in (request.endpoint or '') and 'docente' in (request.endpoint or '') %}active{% endif %}">
+          <i class="ti ti-users-plus"></i> Registro de Estudiantes
+        </a>
         <a href="{{ url_for('docente.cuenta') }}"
            class="nav-item {% if request.endpoint == 'docente.cuenta' %}active{% endif %}">
           <i class="ti ti-user-circle"></i> Mi Cuenta

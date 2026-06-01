@@ -1,0 +1,725 @@
+{% extends 'base.html' %}
+{% block title %}Organizar Grupos{% endblock %}
+{% block page_title %}Registro de Estudiantes{% endblock %}
+
+{% block content %}
+
+<!-- Breadcrumb -->
+<div style="display:flex; align-items:center; gap:8px; margin-bottom:20px; font-size:13px; color:var(--muted);">
+  <a href="{{ url_for('docente.registro_estudiantes') }}" style="color:var(--blue); font-weight:500;">
+    <i class="ti ti-layout-kanban"></i> Registro de Estudiantes
+  </a>
+  <i class="ti ti-chevron-right" style="font-size:14px;"></i>
+  <span style="font-weight:600; color:var(--text);">Organizar Grupos</span>
+</div>
+
+<!-- Selector de curso -->
+{% if cursos | length > 1 %}
+<div class="card" style="margin-bottom:20px; padding:14px 20px;">
+  <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+    <span style="font-size:13px; font-weight:600; color:var(--muted);">Curso:</span>
+    {% for c in cursos %}
+    <a href="{{ url_for('docente.organizar_grupos', curso=c.id_curso) }}"
+       style="display:inline-flex; align-items:center; gap:7px; padding:5px 14px; border-radius:20px; font-size:13px; font-weight:600; text-decoration:none;
+              border: 2px solid {{ c.color if c.id_curso == curso_actual.id_curso else 'var(--border)' }};
+              background: {{ 'rgba(37,99,235,.07)' if c.id_curso == curso_actual.id_curso else 'transparent' }};
+              color: {{ c.color if c.id_curso == curso_actual.id_curso else 'var(--muted)' }};">
+      <div style="width:8px; height:8px; border-radius:50%; background:{{ c.color }};"></div>
+      {{ c.nombre }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if not evento %}
+<div class="alert alert-warning">
+  <i class="ti ti-alert-triangle"></i>
+  No hay ningún evento registrado. No es posible crear grupos sin un evento activo.
+</div>
+{% else %}
+
+<!-- Barra superior -->
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; flex-wrap:wrap; gap:12px;">
+  <div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="width:12px; height:12px; border-radius:50%; background:{{ curso_actual.color }};"></div>
+      <span style="font-size:16px; font-weight:700;">{{ curso_actual.nombre }}</span>
+      <span class="badge badge-gray">Ciclo {{ curso_actual.ciclo }}</span>
+    </div>
+    <div style="font-size:13px; color:var(--muted); margin-top:3px;" id="resumen-texto">Cargando...</div>
+  </div>
+  <button class="btn btn-primary" id="btn-crear-grupo" onclick="abrirModalCrear()">
+    <i class="ti ti-plus"></i> Crear nuevo grupo
+  </button>
+</div>
+
+<!-- ══ SECCIÓN GRUPOS ══ -->
+<div style="margin-bottom:10px; font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em;">
+  <i class="ti ti-layout-kanban" style="font-size:14px;"></i> Grupos creados
+</div>
+<div id="grupos-container" style="min-height:200px; margin-bottom:24px;">
+  <div class="grupos-vacio" id="grupos-vacio">
+    <i class="ti ti-circles-relation"></i>
+    <div>Aún no has creado ningún grupo</div>
+    <div style="font-size:12px; color:var(--muted); margin-top:4px;">Haz clic en "Crear nuevo grupo" para empezar</div>
+  </div>
+</div>
+
+<!-- ══ SECCIÓN POOL ══ -->
+<div style="background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden;">
+  <div style="padding:14px 20px 12px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px;">
+    <i class="ti ti-users" style="color:var(--muted);"></i>
+    <span style="font-weight:700; font-size:14px;">Estudiantes sin grupo</span>
+    <span class="badge badge-gray" id="pool-count">0</span>
+    <span style="font-size:12px; color:var(--muted); margin-left:auto;">
+      <i class="ti ti-drag-drop"></i> Arrastra las tarjetas hacia un grupo
+    </span>
+  </div>
+  <div id="pool-zona"
+       class="pool-zona"
+       data-id-grupo=""
+       ondragover="onDragOver(event)"
+       ondragleave="onDragLeave(event)"
+       ondrop="onDrop(event)">
+    <div id="pool-vacio" class="pool-vacio" style="display:none;">
+      <i class="ti ti-check-circle" style="color:var(--success);"></i>
+      Todos los estudiantes han sido asignados a un grupo
+    </div>
+  </div>
+</div>
+
+{% endif %}
+
+<!-- ══ MODAL: CREAR GRUPO ══ -->
+<div class="modal-overlay" id="modal-crear" onclick="cerrarModalCrearOverlay(event)">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-circles-relation" style="margin-right:6px; color:var(--blue);"></i>Crear nuevo grupo</div>
+      <button class="modal-close" onclick="cerrarModalCrear()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="form-group">
+        <label>Nombre del grupo <span style="color:var(--danger);">*</span></label>
+        <input type="text" id="nuevo-nombre" placeholder="Ej: Equipo Alpha, Grupo 1..." maxlength="80">
+      </div>
+
+      <div class="form-group">
+        <label>Color del grupo <span style="color:var(--danger);">*</span></label>
+        <div class="color-swatches">
+          <div class="swatch active" data-color="#2563eb" style="background:#2563eb;" onclick="selColor(this,'#2563eb')"></div>
+          <div class="swatch" data-color="#16a34a" style="background:#16a34a;" onclick="selColor(this,'#16a34a')"></div>
+          <div class="swatch" data-color="#d97706" style="background:#d97706;" onclick="selColor(this,'#d97706')"></div>
+          <div class="swatch" data-color="#dc2626" style="background:#dc2626;" onclick="selColor(this,'#dc2626')"></div>
+          <div class="swatch" data-color="#7c3aed" style="background:#7c3aed;" onclick="selColor(this,'#7c3aed')"></div>
+          <div class="swatch" data-color="#0891b2" style="background:#0891b2;" onclick="selColor(this,'#0891b2')"></div>
+          <div class="swatch" data-color="#db2777" style="background:#db2777;" onclick="selColor(this,'#db2777')"></div>
+          <div class="swatch" data-color="#334155" style="background:#334155;" onclick="selColor(this,'#334155')"></div>
+          <label class="swatch swatch-custom" title="Color personalizado">
+            <i class="ti ti-palette" style="font-size:16px;"></i>
+            <input type="color" id="color-custom" value="#2563eb" oninput="selColorCustom(this.value)" style="opacity:0;position:absolute;width:1px;height:1px;">
+          </label>
+        </div>
+        <div id="color-preview" style="margin-top:8px; display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted);">
+          <div id="color-dot" style="width:14px; height:14px; border-radius:50%; background:#2563eb; flex-shrink:0;"></div>
+          <span id="color-hex">#2563eb</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Mesa disponible <span style="color:var(--danger);">*</span></label>
+        <select id="nuevo-espacio">
+          <option value="">— Selecciona una mesa —</option>
+        </select>
+        <div id="sin-espacios" style="display:none; font-size:12px; color:var(--danger); margin-top:6px;">
+          <i class="ti ti-alert-circle"></i> No hay mesas disponibles. Todas están ocupadas por otros grupos.
+        </div>
+      </div>
+
+      <div id="modal-error" style="display:none;" class="alert alert-danger" style="margin-top:8px;"></div>
+
+      <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:18px;">
+        <button type="button" class="btn btn-outline" onclick="cerrarModalCrear()">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="crearGrupo()">
+          <i class="ti ti-plus"></i> Crear grupo
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Datos iniciales -->
+<script id="init-data" type="application/json">
+{"id_curso": {{ curso_actual.id_curso }}, "curso_color": "{{ curso_actual.color }}"}
+</script>
+
+{% endblock %}
+
+
+{% block extra_css %}
+<style>
+/* ── Grupos vacío ── */
+.grupos-vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  gap: 8px;
+  border: 2px dashed var(--border);
+  border-radius: 16px;
+}
+.grupos-vacio i { font-size: 40px; opacity: .35; }
+
+/* ── Grid de grupos ── */
+.grupos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+/* ── Contenedor de grupo ── */
+.grupo-box {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow .15s;
+}
+.grupo-box:hover { box-shadow: 0 4px 18px rgba(0,0,0,.08); }
+
+.grupo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 10px;
+  color: #fff;
+}
+.grupo-header-info { flex:1; min-width:0; }
+.grupo-nombre {
+  font-weight: 800;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.grupo-mesa {
+  font-size: 11px;
+  opacity: .85;
+  margin-top: 1px;
+}
+.btn-del-grupo {
+  background: rgba(0,0,0,.2);
+  border: none;
+  color: #fff;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.btn-del-grupo:hover { background: rgba(0,0,0,.4); }
+
+/* ── Drop zone dentro del grupo ── */
+.grupo-drop-zone {
+  flex: 1;
+  min-height: 110px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: background .15s;
+}
+.grupo-drop-zone.drag-over {
+  background: rgba(37,99,235,.06);
+  border-radius: 0 0 12px 12px;
+}
+.drop-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 80px;
+  color: var(--muted);
+  font-size: 12px;
+  border: 1.5px dashed var(--border);
+  border-radius: 8px;
+  pointer-events: none;
+}
+.drop-hint i { font-size: 22px; opacity: .5; }
+.grupo-count {
+  font-size: 11px;
+  color: rgba(255,255,255,.8);
+  margin-top: 2px;
+}
+
+/* ── Pool ── */
+.pool-zona {
+  min-height: 100px;
+  padding: 14px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-content: flex-start;
+  transition: background .15s;
+}
+.pool-zona.drag-over { background: #f0f9ff; }
+.pool-vacio {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.pool-vacio i { font-size: 20px; }
+
+/* ── Chip de estudiante ── */
+.student-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px 5px 5px;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  cursor: grab;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  user-select: none;
+  transition: box-shadow .12s, border-color .12s, opacity .12s, transform .12s;
+  white-space: nowrap;
+}
+.student-chip:hover {
+  border-color: var(--blue);
+  box-shadow: 0 2px 8px rgba(37,99,235,.12);
+}
+.student-chip.dragging {
+  opacity: .45;
+  transform: scale(.96);
+  cursor: grabbing;
+}
+
+/* Chip dentro del grupo: fondo blanco */
+.grupo-drop-zone .student-chip {
+  background: #fff;
+  width: 100%;
+  border-radius: 8px;
+}
+
+.chip-avatar {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800;
+  flex-shrink: 0;
+}
+
+/* ── Swatches de color ── */
+.color-swatches {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.swatch {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 3px solid transparent;
+  transition: transform .12s, border-color .12s;
+  flex-shrink: 0;
+}
+.swatch:hover { transform: scale(1.15); }
+.swatch.active { border-color: var(--text); transform: scale(1.15); }
+.swatch-custom {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  border: 2px dashed var(--border) !important;
+  color: var(--muted);
+  position: relative;
+  overflow: hidden;
+}
+.swatch-custom:hover { border-color: var(--blue) !important; color: var(--blue); }
+</style>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+/* ════════════════════════════════════════════════
+   ESTADO
+════════════════════════════════════════════════ */
+var CFG       = JSON.parse(document.getElementById('init-data').textContent);
+var ID_CURSO  = CFG.id_curso;
+var poolData  = [];
+var gruposData = [];
+var espaciosLibres = [];
+var colorSel  = '#2563eb';
+var dragId    = null;
+var dragFromGrupo = null;
+
+/* ════════════════════════════════════════════════
+   CARGA INICIAL
+════════════════════════════════════════════════ */
+function cargar() {
+  fetch('/docente/api/organizar-grupos?curso=' + ID_CURSO)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      poolData       = data.pool;
+      gruposData     = data.grupos;
+      espaciosLibres = data.espacios;
+      renderTodo();
+    });
+}
+
+/* ════════════════════════════════════════════════
+   RENDER COMPLETO
+════════════════════════════════════════════════ */
+function renderTodo() {
+  renderGrupos();
+  renderPool();
+  actualizarResumen();
+}
+
+function actualizarResumen() {
+  var total    = poolData.length + gruposData.reduce(function(s,g){ return s + g.miembros.length; }, 0);
+  var asignados = gruposData.reduce(function(s,g){ return s + g.miembros.length; }, 0);
+  document.getElementById('resumen-texto').textContent =
+    total + ' estudiantes · ' + asignados + ' en grupo · ' + poolData.length + ' sin grupo';
+}
+
+/* ── Pool ── */
+function renderPool() {
+  var zona = document.getElementById('pool-zona');
+  var vacio = document.getElementById('pool-vacio');
+  document.getElementById('pool-count').textContent = poolData.length;
+
+  /* limpia chips existentes */
+  Array.from(zona.querySelectorAll('.student-chip')).forEach(function(c){ c.remove(); });
+
+  if (poolData.length === 0) {
+    vacio.style.display = 'flex';
+  } else {
+    vacio.style.display = 'none';
+    poolData.forEach(function(est) {
+      zona.appendChild(mkChip(est, null));
+    });
+  }
+}
+
+/* ── Grupos ── */
+function renderGrupos() {
+  var container = document.getElementById('grupos-container');
+  var vacio = document.getElementById('grupos-vacio');
+  container.innerHTML = '';
+
+  if (gruposData.length === 0) {
+    container.appendChild(vacio);
+    vacio.style.display = '';
+    return;
+  }
+
+  vacio.style.display = 'none';
+  var grid = document.createElement('div');
+  grid.className = 'grupos-grid';
+
+  gruposData.forEach(function(g) {
+    grid.appendChild(mkGrupoBox(g));
+  });
+
+  container.appendChild(grid);
+}
+
+/* ── Chip de estudiante ── */
+function mkChip(est, idGrupo) {
+  var div = document.createElement('div');
+  div.className = 'student-chip';
+  div.draggable = true;
+  div.dataset.idEstudiante = est.id_estudiante;
+  div.dataset.grupoActual  = idGrupo || '';
+
+  var color = idGrupo
+    ? (gruposData.find(function(g){ return g.id_grupo === idGrupo; }) || {}).color || '#2563eb'
+    : '#64748b';
+  var bg = color + '22';
+  var initials = (est.nombre[0]||'').toUpperCase() + (est.apellido[0]||'').toUpperCase();
+
+  div.innerHTML =
+    '<div class="chip-avatar" style="background:' + bg + ';color:' + color + ';">' + initials + '</div>'
+    + esc(est.nombre) + ' ' + esc(est.apellido);
+
+  div.addEventListener('dragstart', onDragStart);
+  div.addEventListener('dragend',   onDragEnd);
+  return div;
+}
+
+/* ── Contenedor de grupo ── */
+function mkGrupoBox(g) {
+  var box = document.createElement('div');
+  box.className = 'grupo-box';
+  box.dataset.idGrupo = g.id_grupo;
+  box.style.borderColor = g.color + '55';
+
+  /* header */
+  var hdr = document.createElement('div');
+  hdr.className = 'grupo-header';
+  hdr.style.background = g.color;
+  hdr.innerHTML =
+    '<div class="grupo-header-info">'
+    + '<div class="grupo-nombre">' + esc(g.nombre) + '</div>'
+    + '<div class="grupo-mesa">Mesa ' + g.num_mesa + ' &middot; ' + esc(g.ubicacion) + '</div>'
+    + '<div class="grupo-count" id="count-' + g.id_grupo + '">' + g.miembros.length + ' integrante' + (g.miembros.length !== 1 ? 's' : '') + '</div>'
+    + '</div>'
+    + '<button class="btn-del-grupo" onclick="eliminarGrupo(' + g.id_grupo + ')" title="Eliminar grupo"><i class="ti ti-trash"></i></button>';
+  box.appendChild(hdr);
+
+  /* drop zone */
+  var zona = document.createElement('div');
+  zona.className = 'grupo-drop-zone';
+  zona.dataset.idGrupo = g.id_grupo;
+  zona.addEventListener('dragover',  onDragOver);
+  zona.addEventListener('dragleave', onDragLeave);
+  zona.addEventListener('drop',      onDrop);
+
+  if (g.miembros.length === 0) {
+    var hint = document.createElement('div');
+    hint.className = 'drop-hint';
+    hint.innerHTML = '<i class="ti ti-drag-drop"></i>Arrastra estudiantes aquí';
+    zona.appendChild(hint);
+  } else {
+    g.miembros.forEach(function(m){ zona.appendChild(mkChip(m, g.id_grupo)); });
+  }
+
+  box.appendChild(zona);
+  return box;
+}
+
+/* ════════════════════════════════════════════════
+   DRAG & DROP
+════════════════════════════════════════════════ */
+function onDragStart(e) {
+  dragId         = parseInt(this.dataset.idEstudiante);
+  dragFromGrupo  = this.dataset.grupoActual ? parseInt(this.dataset.grupoActual) : null;
+  e.dataTransfer.effectAllowed = 'move';
+  this.classList.add('dragging');
+  /* resaltar zonas */
+  document.querySelectorAll('.grupo-drop-zone, .pool-zona').forEach(function(z){
+    z.style.outline = '2px dashed #cbd5e1';
+  });
+}
+
+function onDragEnd(e) {
+  this.classList.remove('dragging');
+  document.querySelectorAll('.grupo-drop-zone, .pool-zona').forEach(function(z){
+    z.style.outline = '';
+    z.classList.remove('drag-over');
+  });
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  this.classList.add('drag-over');
+}
+
+function onDragLeave(e) {
+  if (e.relatedTarget && this.contains(e.relatedTarget)) return;
+  this.classList.remove('drag-over');
+}
+
+function onDrop(e) {
+  e.preventDefault();
+  this.classList.remove('drag-over');
+  document.querySelectorAll('.grupo-drop-zone, .pool-zona').forEach(function(z){ z.style.outline=''; });
+
+  var destGrupoId = this.dataset.idGrupo ? parseInt(this.dataset.idGrupo) : null;
+  if (destGrupoId === dragFromGrupo) return; /* misma zona */
+
+  /* buscar el estudiante en el estado */
+  var est = null;
+  if (dragFromGrupo) {
+    var g = gruposData.find(function(x){ return x.id_grupo === dragFromGrupo; });
+    if (g) {
+      var idx = g.miembros.findIndex(function(m){ return m.id_estudiante === dragId; });
+      if (idx > -1) { est = g.miembros.splice(idx, 1)[0]; }
+    }
+  } else {
+    var idx = poolData.findIndex(function(m){ return m.id_estudiante === dragId; });
+    if (idx > -1) { est = poolData.splice(idx, 1)[0]; }
+  }
+  if (!est) return;
+
+  /* agregar al destino */
+  if (destGrupoId) {
+    var destG = gruposData.find(function(x){ return x.id_grupo === destGrupoId; });
+    if (destG) destG.miembros.push(est);
+  } else {
+    poolData.push(est);
+    poolData.sort(function(a,b){ return (a.apellido+a.nombre).localeCompare(b.apellido+b.nombre); });
+  }
+
+  renderTodo();
+
+  /* persistir */
+  fetch('/docente/organizar-grupos/mover', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id_estudiante: dragId, id_grupo: destGrupoId, id_curso: ID_CURSO })
+  }).catch(function(){ cargar(); }); /* si falla, recarga del server */
+}
+
+/* ════════════════════════════════════════════════
+   MODAL CREAR GRUPO
+════════════════════════════════════════════════ */
+function abrirModalCrear() {
+  actualizarSelectEspacios();
+  document.getElementById('modal-crear').classList.add('open');
+  document.getElementById('nuevo-nombre').focus();
+  document.getElementById('modal-error').style.display = 'none';
+}
+
+function cerrarModalCrear() {
+  document.getElementById('modal-crear').classList.remove('open');
+  document.getElementById('nuevo-nombre').value = '';
+  document.getElementById('modal-error').style.display = 'none';
+}
+
+function cerrarModalCrearOverlay(e) {
+  if (e.target === document.getElementById('modal-crear')) cerrarModalCrear();
+}
+
+document.addEventListener('keydown', function(e){ if (e.key==='Escape') cerrarModalCrear(); });
+
+function actualizarSelectEspacios() {
+  var sel = document.getElementById('nuevo-espacio');
+  var sinEsp = document.getElementById('sin-espacios');
+  sel.innerHTML = '<option value="">— Selecciona una mesa —</option>';
+  espaciosLibres.forEach(function(e){
+    var opt = document.createElement('option');
+    opt.value = e.id_espacio;
+    opt.textContent = 'Mesa ' + e.num_mesa + ' — ' + e.ubicacion;
+    sel.appendChild(opt);
+  });
+  if (espaciosLibres.length === 0) {
+    sinEsp.style.display = '';
+    sel.disabled = true;
+  } else {
+    sinEsp.style.display = 'none';
+    sel.disabled = false;
+  }
+}
+
+/* ── Color ── */
+function selColor(el, hex) {
+  document.querySelectorAll('.swatch').forEach(function(s){ s.classList.remove('active'); });
+  el.classList.add('active');
+  colorSel = hex;
+  document.getElementById('color-dot').style.background = hex;
+  document.getElementById('color-hex').textContent = hex;
+}
+
+function selColorCustom(hex) {
+  document.querySelectorAll('.swatch').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelector('.swatch-custom').classList.add('active');
+  colorSel = hex;
+  document.getElementById('color-dot').style.background = hex;
+  document.getElementById('color-hex').textContent = hex;
+}
+
+/* ── Crear ── */
+function crearGrupo() {
+  var nombre    = document.getElementById('nuevo-nombre').value.trim();
+  var idEspacio = parseInt(document.getElementById('nuevo-espacio').value);
+  var errEl     = document.getElementById('modal-error');
+  errEl.style.display = 'none';
+
+  if (!nombre) { mostrarErrModal('Escribe un nombre para el grupo.'); return; }
+  if (!idEspacio) { mostrarErrModal('Selecciona una mesa disponible.'); return; }
+
+  fetch('/docente/organizar-grupos/crear', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id_curso: ID_CURSO, nombre: nombre, color: colorSel, id_espacio: idEspacio })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (data.error) { mostrarErrModal(data.error); return; }
+    /* quitar espacio de libres */
+    espaciosLibres = espaciosLibres.filter(function(e){ return e.id_espacio !== idEspacio; });
+    /* agregar grupo al estado */
+    gruposData.push({ id_grupo: data.id_grupo, nombre: data.nombre, color: data.color,
+                      num_mesa: data.num_mesa, ubicacion: data.ubicacion,
+                      id_espacio: data.id_espacio, miembros: [] });
+    renderTodo();
+    cerrarModalCrear();
+  })
+  .catch(function(){ mostrarErrModal('Error de conexión. Intenta nuevamente.'); });
+}
+
+function mostrarErrModal(msg) {
+  var el = document.getElementById('modal-error');
+  el.textContent = msg;
+  el.style.display = '';
+}
+
+/* ════════════════════════════════════════════════
+   ELIMINAR GRUPO
+════════════════════════════════════════════════ */
+function eliminarGrupo(idGrupo) {
+  var g = gruposData.find(function(x){ return x.id_grupo === idGrupo; });
+  var n = g ? g.miembros.length : 0;
+  var msg = '¿Eliminar el grupo "' + (g ? g.nombre : '') + '"?';
+  if (n > 0) msg += '\n\nSus ' + n + ' integrante' + (n!==1?'s':'') + ' volverán al pool sin grupo.';
+  if (!confirm(msg)) return;
+
+  fetch('/docente/organizar-grupos/eliminar', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id_grupo: idGrupo })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (data.error) { alert(data.error); return; }
+    /* devolver estudiantes al pool */
+    if (g) {
+      g.miembros.forEach(function(m){ poolData.push(m); });
+      poolData.sort(function(a,b){ return (a.apellido+a.nombre).localeCompare(b.apellido+b.nombre); });
+      /* liberar espacio */
+      if (data.espacio_liberado) {
+        espaciosLibres.push(data.espacio_liberado);
+        espaciosLibres.sort(function(a,b){ return a.num_mesa - b.num_mesa; });
+      }
+    }
+    gruposData = gruposData.filter(function(x){ return x.id_grupo !== idGrupo; });
+    renderTodo();
+  })
+  .catch(function(){ alert('Error al eliminar el grupo.'); });
+}
+
+/* ════════════════════════════════════════════════
+   UTILIDADES
+════════════════════════════════════════════════ */
+function esc(str) {
+  return String(str||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* Pool también es drop zone */
+document.addEventListener('DOMContentLoaded', function(){
+  cargar();
+});
+</script>
+{% endblock %}

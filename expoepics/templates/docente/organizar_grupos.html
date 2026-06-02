@@ -137,7 +137,7 @@
         </div>
       </div>
 
-      <div id="modal-error" style="display:none;" class="alert alert-danger" style="margin-top:8px;"></div>
+      <div id="modal-error" style="display:none; margin-top:8px;" class="alert alert-danger"></div>
 
       <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:18px;">
         <button type="button" class="btn btn-outline" onclick="cerrarModalCrear()">Cancelar</button>
@@ -311,12 +311,17 @@
   transform: scale(.96);
   cursor: grabbing;
 }
+.student-chip.es-lider {
+  border-color: #d97706;
+  background: #fffbeb;
+}
 
 /* Chip dentro del grupo: fondo blanco */
 .grupo-drop-zone .student-chip {
   background: #fff;
   width: 100%;
   border-radius: 8px;
+  padding-right: 6px;
 }
 
 .chip-avatar {
@@ -325,6 +330,37 @@
   display: flex; align-items: center; justify-content: center;
   font-size: 10px; font-weight: 800;
   flex-shrink: 0;
+}
+.chip-name { flex: 1; }
+
+/* ── Botón corona (asignar líder) ── */
+.btn-crown {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: #d1d5db;
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color .15s, transform .15s;
+  display: flex; align-items: center;
+}
+.btn-crown:hover { color: #d97706; transform: scale(1.2); }
+.btn-crown.activo { color: #d97706; }
+
+/* ── Badge líder en el header del grupo ── */
+.grupo-lider-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  background: rgba(255,255,255,.22);
+  border-radius: 10px;
+  padding: 2px 8px;
+  margin-top: 4px;
+  font-weight: 600;
 }
 
 /* ── Swatches de color ── */
@@ -394,71 +430,79 @@ function renderTodo() {
 }
 
 function actualizarResumen() {
-  var total    = poolData.length + gruposData.reduce(function(s,g){ return s + g.miembros.length; }, 0);
+  var total     = poolData.length + gruposData.reduce(function(s,g){ return s + g.miembros.length; }, 0);
   var asignados = gruposData.reduce(function(s,g){ return s + g.miembros.length; }, 0);
-  document.getElementById('resumen-texto').textContent =
-    total + ' estudiantes · ' + asignados + ' en grupo · ' + poolData.length + ' sin grupo';
+  var el = document.getElementById('resumen-texto');
+  if (el) el.textContent = total + ' estudiantes \xb7 ' + asignados + ' en grupo \xb7 ' + poolData.length + ' sin grupo';
 }
 
 /* ── Pool ── */
 function renderPool() {
-  var zona = document.getElementById('pool-zona');
+  var zona  = document.getElementById('pool-zona');
   var vacio = document.getElementById('pool-vacio');
-  document.getElementById('pool-count').textContent = poolData.length;
+  var cnt   = document.getElementById('pool-count');
+  if (cnt) cnt.textContent = poolData.length;
 
-  /* limpia chips existentes */
   Array.from(zona.querySelectorAll('.student-chip')).forEach(function(c){ c.remove(); });
 
   if (poolData.length === 0) {
-    vacio.style.display = 'flex';
+    if (vacio) vacio.style.display = 'flex';
   } else {
-    vacio.style.display = 'none';
-    poolData.forEach(function(est) {
-      zona.appendChild(mkChip(est, null));
-    });
+    if (vacio) vacio.style.display = 'none';
+    poolData.forEach(function(est) { zona.appendChild(mkChip(est, null)); });
   }
 }
 
 /* ── Grupos ── */
 function renderGrupos() {
   var container = document.getElementById('grupos-container');
+
+  /* Eliminar solo el grid anterior — NO tocar #grupos-vacio del DOM con innerHTML='' */
+  var oldGrid = container.querySelector('.grupos-grid');
+  if (oldGrid) oldGrid.remove();
+
+  /* Obtener vacio DESPUES de limpiar el grid (nunca fue eliminado) */
   var vacio = document.getElementById('grupos-vacio');
-  container.innerHTML = '';
 
   if (gruposData.length === 0) {
-    container.appendChild(vacio);
-    vacio.style.display = '';
+    if (vacio) { vacio.style.display = ''; container.appendChild(vacio); }
     return;
   }
 
-  vacio.style.display = 'none';
+  if (vacio) vacio.style.display = 'none';
+
   var grid = document.createElement('div');
   grid.className = 'grupos-grid';
-
-  gruposData.forEach(function(g) {
-    grid.appendChild(mkGrupoBox(g));
-  });
-
+  gruposData.forEach(function(g) { grid.appendChild(mkGrupoBox(g)); });
   container.appendChild(grid);
 }
 
 /* ── Chip de estudiante ── */
 function mkChip(est, idGrupo) {
   var div = document.createElement('div');
-  div.className = 'student-chip';
+  var esLider = idGrupo && est.es_lider;
+  div.className = 'student-chip' + (esLider ? ' es-lider' : '');
   div.draggable = true;
   div.dataset.idEstudiante = est.id_estudiante;
   div.dataset.grupoActual  = idGrupo || '';
 
-  var color = idGrupo
-    ? (gruposData.find(function(g){ return g.id_grupo === idGrupo; }) || {}).color || '#2563eb'
-    : '#64748b';
+  var g = idGrupo ? gruposData.find(function(x){ return x.id_grupo === idGrupo; }) : null;
+  var color = g ? g.color : '#64748b';
   var bg = color + '22';
   var initials = (est.nombre[0]||'').toUpperCase() + (est.apellido[0]||'').toUpperCase();
 
+  var crownHtml = '';
+  if (idGrupo) {
+    crownHtml = '<button class="btn-crown' + (esLider ? ' activo' : '') + '" '
+      + 'onclick="toggleLider(event,' + est.id_estudiante + ',' + idGrupo + ')" '
+      + 'title="' + (esLider ? 'Quitar como líder' : 'Asignar como líder') + '">'
+      + '<i class="ti ti-crown"></i></button>';
+  }
+
   div.innerHTML =
     '<div class="chip-avatar" style="background:' + bg + ';color:' + color + ';">' + initials + '</div>'
-    + esc(est.nombre) + ' ' + esc(est.apellido);
+    + '<span class="chip-name">' + esc(est.nombre) + ' ' + esc(est.apellido) + '</span>'
+    + crownHtml;
 
   div.addEventListener('dragstart', onDragStart);
   div.addEventListener('dragend',   onDragEnd);
@@ -472,6 +516,16 @@ function mkGrupoBox(g) {
   box.dataset.idGrupo = g.id_grupo;
   box.style.borderColor = g.color + '55';
 
+  /* Buscar nombre del líder */
+  var liderNombre = '';
+  if (g.id_lider) {
+    var liderM = g.miembros.find(function(m){ return m.id_estudiante === g.id_lider; });
+    if (liderM) liderNombre = liderM.nombre + ' ' + liderM.apellido;
+  }
+  var liderBadge = liderNombre
+    ? '<div class="grupo-lider-badge"><i class="ti ti-crown"></i>' + esc(liderNombre) + '</div>'
+    : '<div class="grupo-lider-badge" style="opacity:.6;"><i class="ti ti-crown"></i>Sin líder asignado</div>';
+
   /* header */
   var hdr = document.createElement('div');
   hdr.className = 'grupo-header';
@@ -480,7 +534,7 @@ function mkGrupoBox(g) {
     '<div class="grupo-header-info">'
     + '<div class="grupo-nombre">' + esc(g.nombre) + '</div>'
     + '<div class="grupo-mesa">Mesa ' + g.num_mesa + ' &middot; ' + esc(g.ubicacion) + '</div>'
-    + '<div class="grupo-count" id="count-' + g.id_grupo + '">' + g.miembros.length + ' integrante' + (g.miembros.length !== 1 ? 's' : '') + '</div>'
+    + liderBadge
     + '</div>'
     + '<button class="btn-del-grupo" onclick="eliminarGrupo(' + g.id_grupo + ')" title="Eliminar grupo"><i class="ti ti-trash"></i></button>';
   box.appendChild(hdr);
@@ -504,6 +558,33 @@ function mkGrupoBox(g) {
 
   box.appendChild(zona);
   return box;
+}
+
+/* ── Asignar / quitar líder ── */
+function toggleLider(e, idEstudiante, idGrupo) {
+  e.stopPropagation();
+  e.preventDefault();
+
+  var g = gruposData.find(function(x){ return x.id_grupo === idGrupo; });
+  if (!g) return;
+
+  /* Si ya es líder → quitar; si no → asignar */
+  var nuevoLider = g.id_lider === idEstudiante ? null : idEstudiante;
+
+  fetch('/docente/organizar-grupos/lider', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id_grupo: idGrupo, id_estudiante: nuevoLider })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (data.error) { alert(data.error); return; }
+    /* Actualizar estado local */
+    g.id_lider = nuevoLider;
+    g.miembros.forEach(function(m){ m.es_lider = m.id_estudiante === nuevoLider; });
+    renderTodo();
+  })
+  .catch(function(){ alert('Error al asignar líder.'); });
 }
 
 /* ════════════════════════════════════════════════
@@ -550,16 +631,29 @@ function onDrop(e) {
   /* buscar el estudiante en el estado */
   var est = null;
   if (dragFromGrupo) {
-    var g = gruposData.find(function(x){ return x.id_grupo === dragFromGrupo; });
-    if (g) {
-      var idx = g.miembros.findIndex(function(m){ return m.id_estudiante === dragId; });
-      if (idx > -1) { est = g.miembros.splice(idx, 1)[0]; }
+    var gOrigen = gruposData.find(function(x){ return x.id_grupo === dragFromGrupo; });
+    if (gOrigen) {
+      var idx = gOrigen.miembros.findIndex(function(m){ return m.id_estudiante === dragId; });
+      if (idx > -1) {
+        est = gOrigen.miembros.splice(idx, 1)[0];
+        /* Si era el líder del grupo origen, limpiar id_lider */
+        if (gOrigen.id_lider === dragId) {
+          gOrigen.id_lider = null;
+          fetch('/docente/organizar-grupos/lider', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id_grupo: dragFromGrupo, id_estudiante: null })
+          });
+        }
+      }
     }
   } else {
     var idx = poolData.findIndex(function(m){ return m.id_estudiante === dragId; });
     if (idx > -1) { est = poolData.splice(idx, 1)[0]; }
   }
   if (!est) return;
+
+  est.es_lider = false; /* al moverse pierde el rol de líder */
 
   /* agregar al destino */
   if (destGrupoId) {
@@ -645,27 +739,39 @@ function crearGrupo() {
   var errEl     = document.getElementById('modal-error');
   errEl.style.display = 'none';
 
-  if (!nombre) { mostrarErrModal('Escribe un nombre para el grupo.'); return; }
+  if (!nombre)    { mostrarErrModal('Escribe un nombre para el grupo.'); return; }
   if (!idEspacio) { mostrarErrModal('Selecciona una mesa disponible.'); return; }
+
+  var btnCrear = document.querySelector('#modal-crear .btn-primary');
+  if (btnCrear) { btnCrear.disabled = true; btnCrear.textContent = 'Creando...'; }
 
   fetch('/docente/organizar-grupos/crear', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ id_curso: ID_CURSO, nombre: nombre, color: colorSel, id_espacio: idEspacio })
   })
-  .then(function(r){ return r.json(); })
+  .then(function(r) {
+    if (!r.ok) {
+      return r.text().then(function(t) {
+        /* respuesta no-JSON (ej: redirect a login) */
+        throw new Error('Error del servidor (' + r.status + '). Recarga la página e intenta de nuevo.');
+      });
+    }
+    return r.json();
+  })
   .then(function(data){
     if (data.error) { mostrarErrModal(data.error); return; }
-    /* quitar espacio de libres */
     espaciosLibres = espaciosLibres.filter(function(e){ return e.id_espacio !== idEspacio; });
-    /* agregar grupo al estado */
     gruposData.push({ id_grupo: data.id_grupo, nombre: data.nombre, color: data.color,
-                      num_mesa: data.num_mesa, ubicacion: data.ubicacion,
+                      id_lider: null, num_mesa: data.num_mesa, ubicacion: data.ubicacion,
                       id_espacio: data.id_espacio, miembros: [] });
     renderTodo();
     cerrarModalCrear();
   })
-  .catch(function(){ mostrarErrModal('Error de conexión. Intenta nuevamente.'); });
+  .catch(function(err){ mostrarErrModal(err.message || 'Error de conexión. Intenta nuevamente.'); })
+  .finally(function(){
+    if (btnCrear) { btnCrear.disabled = false; btnCrear.innerHTML = '<i class="ti ti-plus"></i> Crear grupo'; }
+  });
 }
 
 function mostrarErrModal(msg) {

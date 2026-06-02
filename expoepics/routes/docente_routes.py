@@ -49,10 +49,45 @@ def dashboard():
                                evento=None, metricas={},
                                proyectos_recientes=[], chart_cursos='[]', chart_estados='[]')
 
-    id_evento = evento['id_evento']
-    metricas  = _get_metricas(id_evento)
-
+    id_evento  = evento['id_evento']
+    metricas   = _get_metricas(id_evento)
     id_docente = session['role_id']
+
+    # Sobreescribir las 3 métricas con datos filtrados por este docente
+    est_docente = query(
+        "SELECT COUNT(DISTINCT eg.id_estudiante) AS cnt "
+        "FROM estudiante_grupo eg "
+        "JOIN grupo g ON eg.id_grupo = g.id_grupo "
+        "JOIN curso c ON g.id_curso = c.id_curso "
+        "WHERE g.id_evento = %s AND c.id_docente = %s",
+        (id_evento, id_docente), fetch_one=True)['cnt']
+
+    grp_docente = query(
+        "SELECT COUNT(*) AS cnt FROM grupo g "
+        "JOIN curso c ON g.id_curso = c.id_curso "
+        "WHERE g.id_evento = %s AND c.id_docente = %s",
+        (id_evento, id_docente), fetch_one=True)['cnt']
+
+    proy_docente = query(
+        "SELECT COUNT(*) AS cnt FROM proyecto p "
+        "JOIN grupo g ON p.id_grupo = g.id_grupo "
+        "JOIN curso c ON g.id_curso = c.id_curso "
+        "WHERE g.id_evento = %s AND c.id_docente = %s",
+        (id_evento, id_docente), fetch_one=True)['cnt']
+
+    # Total de estudiantes registrados en los cursos de este docente
+    total_registrados = query(
+        "SELECT COUNT(*) AS cnt FROM inscripcion_curso ic "
+        "JOIN curso c ON ic.id_curso = c.id_curso "
+        "WHERE c.id_docente = %s",
+        (id_docente,), fetch_one=True)['cnt']
+
+    metricas['participantes']   = est_docente
+    metricas['grupos']          = grp_docente
+    metricas['proyectos']       = proy_docente
+    metricas['pct_inscripcion'] = int(round(
+        est_docente * 100.0 / max(total_registrados, 1), 0
+    )) if total_registrados else 0
 
     chart_cursos = query(
         "SELECT c.nombre, COUNT(p.id_proyecto) AS total, c.color "
@@ -388,7 +423,7 @@ def api_organizar_grupos():
             for e in todos if e['id_estudiante'] not in ids_asignados]
 
     grupos_rows = query(
-        "SELECT g.id_grupo, g.nombre, g.color, e.num_mesa, e.ubicacion, e.id_espacio "
+        "SELECT g.id_grupo, g.nombre, g.color, g.id_lider, e.num_mesa, e.ubicacion, e.id_espacio "
         "FROM grupo g JOIN espacio e ON g.id_espacio = e.id_espacio "
         "WHERE g.id_curso = %s AND g.id_evento = %s ORDER BY g.id_grupo",
         (id_curso, id_evento))
@@ -406,11 +441,13 @@ def api_organizar_grupos():
             'id_grupo':   g['id_grupo'],
             'nombre':     g['nombre'] or ('Grupo ' + str(g['id_grupo'])),
             'color':      g['color']  or curso['color'],
+            'id_lider':   g['id_lider'],
             'num_mesa':   g['num_mesa'],
             'ubicacion':  g['ubicacion'],
             'id_espacio': g['id_espacio'],
             'miembros':   [{'id_estudiante': m['id_estudiante'],
-                            'nombre': m['nombre'], 'apellido': m['apellido']}
+                            'nombre': m['nombre'], 'apellido': m['apellido'],
+                            'es_lider': m['id_estudiante'] == g['id_lider']}
                            for m in miembros]
         })
 
@@ -545,6 +582,34 @@ def mover_estudiante():
         query("INSERT IGNORE INTO estudiante_grupo (id_estudiante, id_grupo) VALUES (%s,%s)",
               (id_estudiante, id_grupo_dest), commit=True)
 
+    return jsonify({'ok': True})
+
+
+@docente_bp.route('/organizar-grupos/lider', methods=['POST'])
+@role_required('docente')
+def asignar_lider():
+    data          = request.get_json()
+    id_grupo      = data.get('id_grupo')
+    id_estudiante = data.get('id_estudiante')  # None = quitar líder
+
+    grupo = query(
+        "SELECT g.id_grupo FROM grupo g "
+        "JOIN curso c ON g.id_curso = c.id_curso "
+        "WHERE g.id_grupo=%s AND c.id_docente=%s",
+        (id_grupo, session['role_id']), fetch_one=True)
+    if not grupo:
+        return jsonify({'error': 'Grupo no válido'}), 403
+
+    if id_estudiante:
+        en_grupo = query(
+            "SELECT id_estudiante FROM estudiante_grupo "
+            "WHERE id_estudiante=%s AND id_grupo=%s",
+            (id_estudiante, id_grupo), fetch_one=True)
+        if not en_grupo:
+            return jsonify({'error': 'El estudiante no pertenece a este grupo'}), 400
+
+    query("UPDATE grupo SET id_lider=%s WHERE id_grupo=%s",
+          (id_estudiante, id_grupo), commit=True)
     return jsonify({'ok': True})
 
 

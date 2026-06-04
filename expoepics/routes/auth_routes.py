@@ -4,12 +4,13 @@ from database import query
 
 auth_bp = Blueprint('auth', __name__)
 
-_PRIORITY = ['secretaria', 'docente', 'marketing', 'juez', 'estudiante']
+_PRIORITY = ['administrador', 'secretaria', 'docente', 'marketing', 'juez', 'estudiante']
 
 _TAB_ROLES = {
     'docente':    ['docente', 'secretaria'],
     'estudiante': ['estudiante'],
     'juez':       ['juez', 'marketing'],
+    'admin':      ['administrador'],
 }
 
 
@@ -39,11 +40,12 @@ def _primary_role(roles):
 
 def redirect_by_role(role):
     m = {
-        'secretaria': 'secretaria.dashboard',
-        'docente':    'docente.dashboard',
-        'marketing':  'marketing.ranking',
-        'juez':       'juez.proyectos',
-        'estudiante': 'estudiante.proyecto',
+        'secretaria':    'secretaria.dashboard',
+        'docente':       'docente.dashboard',
+        'marketing':     'marketing.ranking',
+        'juez':          'juez.proyectos',
+        'estudiante':    'estudiante.proyecto',
+        'administrador': 'admin.dashboard',
     }
     return redirect(url_for(m.get(role, 'auth.login')))
 

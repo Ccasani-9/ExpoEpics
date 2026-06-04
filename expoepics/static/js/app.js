@@ -19,6 +19,7 @@ function initLoginTabs() {
     docente:    document.getElementById('creds-docente'),
     estudiante: document.getElementById('creds-estudiante'),
     juez:       document.getElementById('creds-juez'),
+    admin:      document.getElementById('creds-admin'),
   };
 
   function activate(tab) {

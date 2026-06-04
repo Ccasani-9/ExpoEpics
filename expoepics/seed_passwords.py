@@ -25,6 +25,7 @@ usuarios = [
     ('l.castro@usmp.edu.pe',   'est123'),
     ('s.rios@usmp.edu.pe',     'est123'),
     ('d.meza@usmp.edu.pe',     'est123'),
+    ('admin@usmp.edu.pe',      'admin123'),
 ]
 
 conn = mysql.connector.connect(

@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard Admin{% endblock %}
+{% block page_title %}Dashboard — Administrador{% endblock %}
+
+{% block content %}
+{% if not evento %}
+  <div class="alert alert-warning">No hay eventos registrados en el sistema.</div>
+{% else %}
+
+<!-- Métricas -->
+<div class="metrics-grid">
+  <div class="metric-card mc-colored mc-blue">
+    <i class="ti ti-table mc-icon"></i>
+    <div class="metric-label">Total de mesas</div>
+    <div class="metric-value">{{ total_mesas }}</div>
+    <div class="metric-sub">En el evento</div>
+  </div>
+  <div class="metric-card mc-colored mc-green">
+    <i class="ti ti-table-off mc-icon"></i>
+    <div class="metric-label">Mesas libres</div>
+    <div class="metric-value">{{ mesas_libres }}</div>
+    <div class="metric-sub">Sin grupo asignado</div>
+  </div>
+  <div class="metric-card mc-colored mc-pink">
+    <i class="ti ti-table-filled mc-icon"></i>
+    <div class="metric-label">Mesas ocupadas</div>
+    <div class="metric-value">{{ total_mesas - mesas_libres }}</div>
+    <div class="metric-sub">Con grupo asignado</div>
+  </div>
+  <div class="metric-card mc-colored mc-gold">
+    <i class="ti ti-checklist mc-icon"></i>
+    <div class="metric-label">% Tareas completadas</div>
+    {% set pct = ((conteos.Completado / conteos.Total) * 100) | round(0) | int if conteos.Total > 0 else 0 %}
+    <div class="metric-value">{{ pct }}%</div>
+    <div class="progress-wrap" style="margin-top:8px;">
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill green" style="width:{{ pct }}%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Info evento -->
+<div class="card" style="margin-bottom:24px; border-left:4px solid var(--blue);">
+  <div style="display:flex; gap:40px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+    <div style="display:flex; gap:40px; flex-wrap:wrap;">
+      <div>
+        <div class="detail-label">Fecha del evento</div>
+        <div class="detail-value" style="font-size:20px; font-weight:800; color:var(--blue);">
+          {{ evento.fecha.strftime('%d de %B de %Y') if evento.fecha else '' }}
+        </div>
+      </div>
+      <div>
+        <div class="detail-label">Horario</div>
+        <div class="detail-value" style="font-size:15px; font-weight:600;">{{ evento.hora_inicio }} — {{ evento.hora_fin }}</div>
+      </div>
+      <div>
+        <div class="detail-label">Ciclo / Año</div>
+        <div class="detail-value" style="font-size:15px; font-weight:600;">Ciclo {{ evento.ciclo }} · {{ evento.anio }}</div>
+      </div>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <a href="{{ url_for('admin.mesas') }}" class="btn btn-primary">
+        <i class="ti ti-table"></i> Gestionar mesas
+      </a>
+      <a href="{{ url_for('admin.tareas') }}" class="btn btn-outline">
+        <i class="ti ti-checklist"></i> Ver tareas
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Resumen tareas -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Resumen de tareas</div>
+      <div class="section-subtitle">Estado general de todas las tareas del evento</div>
+    </div>
+    <a href="{{ url_for('admin.tareas') }}" class="btn btn-outline btn-sm">Ver todas</a>
+  </div>
+  <div style="display:flex; gap:32px; flex-wrap:wrap; margin-bottom:20px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="width:10px;height:10px;border-radius:50%;background:var(--success);flex-shrink:0;"></div>
+      <span style="font-size:22px;font-weight:800;">{{ conteos.Completado }}</span>
+      <span class="text-muted" style="font-size:13px;">Completadas</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="width:10px;height:10px;border-radius:50%;background:var(--warn);flex-shrink:0;"></div>
+      <span style="font-size:22px;font-weight:800;">{{ conteos['En proceso'] }}</span>
+      <span class="text-muted" style="font-size:13px;">En proceso</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="width:10px;height:10px;border-radius:50%;background:var(--danger);flex-shrink:0;"></div>
+      <span style="font-size:22px;font-weight:800;">{{ conteos.Pendiente }}</span>
+      <span class="text-muted" style="font-size:13px;">Pendientes</span>
+    </div>
+  </div>
+  {% if conteos.Total > 0 %}
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span>Progreso general</span>
+      <span style="font-weight:700;">{{ ((conteos.Completado / conteos.Total) * 100) | round(0) | int }}%</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill green" style="width:{{ ((conteos.Completado / conteos.Total) * 100) | round(0) | int }}%"></div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Tareas recientes -->
+<div class="card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Tareas pendientes / en proceso</div>
+      <div class="section-subtitle">Las primeras 6 tareas por atender</div>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Tarea</th><th>Secretaria</th><th>Límite</th><th>Estado</th></tr>
+      </thead>
+      <tbody>
+        {% for t in tareas_recientes %}
+        <tr>
+          <td class="text-bold">{{ t.titulo }}</td>
+          <td class="text-muted">{{ t.nombre_secretaria }}</td>
+          <td class="text-muted">{{ t.fecha_limite or '—' }}</td>
+          <td>
+            {% if t.estado == 'Completado' %}<span class="badge badge-success">{{ t.estado }}</span>
+            {% elif t.estado == 'En proceso' %}<span class="badge badge-warn">{{ t.estado }}</span>
+            {% else %}<span class="badge badge-danger">{{ t.estado }}</span>{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="text-muted" style="text-align:center;padding:32px 0;">Sin tareas registradas.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}

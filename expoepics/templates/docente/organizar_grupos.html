@@ -78,10 +78,7 @@
   </div>
   <div id="pool-zona"
        class="pool-zona"
-       data-id-grupo=""
-       ondragover="onDragOver(event)"
-       ondragleave="onDragLeave(event)"
-       ondrop="onDrop(event)">
+       data-id-grupo="">
     <div id="pool-vacio" class="pool-vacio" style="display:none;">
       <i class="ti ti-check-circle" style="color:var(--success);"></i>
       Todos los estudiantes han sido asignados a un grupo
@@ -823,8 +820,11 @@ function esc(str) {
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-/* Pool también es drop zone */
 document.addEventListener('DOMContentLoaded', function(){
+  var poolZona = document.getElementById('pool-zona');
+  poolZona.addEventListener('dragover',  onDragOver);
+  poolZona.addEventListener('dragleave', onDragLeave);
+  poolZona.addEventListener('drop',      onDrop);
   cargar();
 });
 </script>

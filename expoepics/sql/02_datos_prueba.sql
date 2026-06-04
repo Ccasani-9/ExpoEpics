@@ -117,3 +117,10 @@ INSERT INTO tarea (id_secretaria, id_evento, titulo, descripcion, estado, coment
 
 -- MARKETING_EVENTO
 INSERT INTO marketing_evento (id_marketing, id_evento) VALUES (1, 1);
+
+-- ADMINISTRADOR
+INSERT INTO persona (dni, nombre, apellido, correo, contrasena, contrasena_temporal) VALUES
+('99887766', 'Admin', 'Sistema', 'admin@usmp.edu.pe', 'admin123', 0);
+
+INSERT INTO administrador (id_persona) VALUES (15);
+INSERT INTO administrador_evento (id_administrador, id_evento) VALUES (1, 1);

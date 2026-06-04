@@ -8,12 +8,13 @@ def create_app():
     app.config.from_object(Config)
     app.teardown_appcontext(close_db)
 
-    from routes.auth_routes      import auth_bp
-    from routes.docente_routes   import docente_bp
-    from routes.secretaria_routes import secretaria_bp
-    from routes.estudiante_routes import estudiante_bp
-    from routes.juez_routes      import juez_bp
-    from routes.marketing_routes import marketing_bp
+    from routes.auth_routes           import auth_bp
+    from routes.docente_routes        import docente_bp
+    from routes.secretaria_routes     import secretaria_bp
+    from routes.estudiante_routes     import estudiante_bp
+    from routes.juez_routes           import juez_bp
+    from routes.marketing_routes      import marketing_bp
+    from routes.administrador_routes  import admin_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(docente_bp)
@@ -21,17 +22,19 @@ def create_app():
     app.register_blueprint(estudiante_bp)
     app.register_blueprint(juez_bp)
     app.register_blueprint(marketing_bp)
+    app.register_blueprint(admin_bp)
 
     @app.route('/')
     def index():
         if 'id_persona' not in session:
             return redirect(url_for('auth.login'))
         _map = {
-            'secretaria': 'secretaria.dashboard',
-            'docente':    'docente.dashboard',
-            'marketing':  'marketing.ranking',
-            'juez':       'juez.proyectos',
-            'estudiante': 'estudiante.proyecto',
+            'secretaria':    'secretaria.dashboard',
+            'docente':       'docente.dashboard',
+            'marketing':     'marketing.ranking',
+            'juez':          'juez.proyectos',
+            'estudiante':    'estudiante.proyecto',
+            'administrador': 'admin.dashboard',
         }
         return redirect(url_for(_map.get(session.get('role'), 'auth.login')))
 

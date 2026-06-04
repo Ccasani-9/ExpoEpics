@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% block title %}Gestión de Mesas{% endblock %}
+{% block page_title %}Gestión de Mesas{% endblock %}
+
+{% block content %}
+{% if not evento %}
+  <div class="alert alert-warning">No hay ningún evento registrado en el sistema.</div>
+{% else %}
+
+<!-- Header -->
+<div class="section-header" style="margin-bottom:20px;">
+  <div>
+    <div class="section-title">Mesas del evento</div>
+    <div class="section-subtitle">
+      Evento: {{ evento.fecha.strftime('%d/%m/%Y') }} &middot;
+      {{ mesas | length }} mesa{{ 's' if mesas | length != 1 else '' }} registrada{{ 's' if mesas | length != 1 else '' }}
+    </div>
+  </div>
+  <button class="btn btn-primary" onclick="abrirModalCrear()">
+    <i class="ti ti-plus"></i> Nueva mesa
+  </button>
+</div>
+
+<!-- Tabla de mesas -->
+{% if not mesas %}
+  <div class="alert alert-info">No hay mesas registradas. Crea la primera mesa usando el botón de arriba.</div>
+{% else %}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>N° Mesa</th>
+          <th>Ubicación</th>
+          <th>Estado</th>
+          <th style="text-align:right;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in mesas %}
+        <tr>
+          <td><span style="font-weight:800; font-size:15px;">Mesa {{ m.num_mesa }}</span></td>
+          <td class="text-muted">{{ m.ubicacion }}</td>
+          <td>
+            {% if m.grupos_asignados > 0 %}
+              <span class="badge badge-info"><i class="ti ti-users" style="font-size:11px;"></i> Ocupada</span>
+            {% else %}
+              <span class="badge badge-success"><i class="ti ti-check" style="font-size:11px;"></i> Libre</span>
+            {% endif %}
+          </td>
+          <td style="text-align:right;">
+            <div style="display:flex; gap:6px; justify-content:flex-end;">
+              <button class="btn btn-outline btn-sm"
+                      onclick="abrirModalEditar({{ m.id_espacio }}, {{ m.num_mesa }}, '{{ m.ubicacion | replace("'", "\\'") }}')">
+                <i class="ti ti-pencil"></i> Editar
+              </button>
+              {% if m.grupos_asignados == 0 %}
+              <form method="POST" action="{{ url_for('admin.eliminar_mesa', id_espacio=m.id_espacio) }}"
+                    onsubmit="return confirm('¿Eliminar Mesa {{ m.num_mesa }}?');" style="display:inline;">
+                <button class="btn btn-danger btn-sm" type="submit">
+                  <i class="ti ti-trash"></i> Eliminar
+                </button>
+              </form>
+              {% else %}
+              <button class="btn btn-outline btn-sm" disabled title="Tiene un grupo asignado">
+                <i class="ti ti-trash"></i> Eliminar
+              </button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- MODAL: CREAR MESA -->
+<div class="modal-overlay" id="modal-crear" onclick="cerrarSiOverlay(event,'modal-crear')">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-table" style="margin-right:6px;color:var(--blue);"></i>Nueva mesa</div>
+      <button class="modal-close" onclick="cerrarModal('modal-crear')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <form method="POST" action="{{ url_for('admin.crear_mesa') }}">
+        <div class="form-group">
+          <label>Número de mesa <span style="color:var(--danger);">*</span></label>
+          <input type="number" name="num_mesa" min="1" max="999" placeholder="Ej: 5" required>
+        </div>
+        <div class="form-group">
+          <label>Ubicación <span style="color:var(--danger);">*</span></label>
+          <input type="text" name="ubicacion" maxlength="80" placeholder="Ej: Patio principal" required>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:18px;">
+          <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-crear')">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="ti ti-plus"></i> Crear mesa</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: EDITAR MESA -->
+<div class="modal-overlay" id="modal-editar" onclick="cerrarSiOverlay(event,'modal-editar')">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-pencil" style="margin-right:6px;color:var(--blue);"></i>Editar mesa</div>
+      <button class="modal-close" onclick="cerrarModal('modal-editar')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <form method="POST" id="form-editar" action="">
+        <div class="form-group">
+          <label>Número de mesa <span style="color:var(--danger);">*</span></label>
+          <input type="number" id="edit-num_mesa" name="num_mesa" min="1" max="999" required>
+        </div>
+        <div class="form-group">
+          <label>Ubicación <span style="color:var(--danger);">*</span></label>
+          <input type="text" id="edit-ubicacion" name="ubicacion" maxlength="80" required>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:18px;">
+          <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-editar')">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="ti ti-check"></i> Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function abrirModalCrear() {
+  document.getElementById('modal-crear').classList.add('open');
+}
+
+function abrirModalEditar(idEspacio, numMesa, ubicacion) {
+  document.getElementById('form-editar').action = '/admin/mesas/' + idEspacio + '/editar';
+  document.getElementById('edit-num_mesa').value  = numMesa;
+  document.getElementById('edit-ubicacion').value = ubicacion;
+  document.getElementById('modal-editar').classList.add('open');
+}
+
+function cerrarModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function cerrarSiOverlay(e, id) {
+  if (e.target === document.getElementById(id)) cerrarModal(id);
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    cerrarModal('modal-crear');
+    cerrarModal('modal-editar');
+  }
+});
+</script>
+{% endblock %}

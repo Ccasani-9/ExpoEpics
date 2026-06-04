@@ -26,6 +26,7 @@
           {% elif session.role == 'estudiante' %}Portal Estudiante
           {% elif session.role == 'juez' %}Portal Juez
           {% elif session.role == 'marketing' %}Portal Marketing
+          {% elif session.role == 'administrador' %}Panel Administrador
           {% endif %}
         </div>
       </div>
@@ -111,6 +112,24 @@
         </a>
         <a href="{{ url_for('marketing.cuenta') }}"
            class="nav-item {% if request.endpoint == 'marketing.cuenta' %}active{% endif %}">
+          <i class="ti ti-user-circle"></i> Mi Cuenta
+        </a>
+
+      {% elif session.role == 'administrador' %}
+        <a href="{{ url_for('admin.dashboard') }}"
+           class="nav-item {% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
+          <i class="ti ti-layout-dashboard"></i> Dashboard
+        </a>
+        <a href="{{ url_for('admin.mesas') }}"
+           class="nav-item {% if request.endpoint == 'admin.mesas' %}active{% endif %}">
+          <i class="ti ti-table"></i> Mesas
+        </a>
+        <a href="{{ url_for('admin.tareas') }}"
+           class="nav-item {% if 'tarea' in (request.endpoint or '') and 'admin' in (request.endpoint or '') %}active{% endif %}">
+          <i class="ti ti-checklist"></i> Tareas
+        </a>
+        <a href="{{ url_for('admin.cuenta') }}"
+           class="nav-item {% if request.endpoint == 'admin.cuenta' %}active{% endif %}">
           <i class="ti ti-user-circle"></i> Mi Cuenta
         </a>
       {% endif %}

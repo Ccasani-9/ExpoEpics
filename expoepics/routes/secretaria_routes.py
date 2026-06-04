@@ -72,10 +72,17 @@ def dashboard():
         "SELECT estado, COUNT(*) AS cnt FROM tarea WHERE id_evento=%s GROUP BY estado",
         (id_evento,))
 
+    todas_tareas = query(
+        "SELECT t.titulo, t.estado, t.descripcion, t.fecha_limite, t.comentario "
+        "FROM tarea t WHERE t.id_evento=%s "
+        "ORDER BY FIELD(t.estado,'En proceso','Pendiente','Completado'), t.fecha_limite ASC",
+        (id_evento,))
+
     return render_template('secretaria/dashboard.html',
                            evento=evento, metricas=metricas,
                            proyectos_recientes=proyectos_recientes,
                            tareas_resumen=tareas_resumen,
+                           todas_tareas=todas_tareas,
                            chart_cursos=json.dumps(chart_cursos, default=str),
                            chart_estados=json.dumps(chart_estados, default=str))
 

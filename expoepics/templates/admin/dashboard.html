@@ -21,13 +21,13 @@
     <div class="metric-value">{{ mesas_libres }}</div>
     <div class="metric-sub">Sin grupo asignado</div>
   </div>
-  <div class="metric-card mc-colored mc-pink">
+  <div class="metric-card mc-colored mc-pink metric-card-clickable" onclick="abrirModalMesas()" style="cursor:pointer;">
     <i class="ti ti-table-filled mc-icon"></i>
     <div class="metric-label">Mesas ocupadas</div>
     <div class="metric-value">{{ total_mesas - mesas_libres }}</div>
-    <div class="metric-sub">Con grupo asignado</div>
+    <div class="metric-sub">Con grupo asignado <i class="ti ti-chart-pie" style="font-size:11px;opacity:.7;"></i></div>
   </div>
-  <div class="metric-card mc-colored mc-gold">
+  <div class="metric-card mc-colored mc-gold metric-card-clickable" onclick="irTareasPendientes()" style="cursor:pointer;">
     <i class="ti ti-checklist mc-icon"></i>
     <div class="metric-label">% Tareas completadas</div>
     {% set pct = ((conteos.Completado / conteos.Total) * 100) | round(0) | int if conteos.Total > 0 else 0 %}
@@ -109,22 +109,29 @@
   {% endif %}
 </div>
 
-<!-- Tareas recientes -->
+<!-- Tareas con filtro y paginación -->
 <div class="card">
-  <div class="section-header">
+  <div class="section-header" style="margin-bottom:14px;">
     <div>
-      <div class="section-title">Tareas pendientes / en proceso</div>
-      <div class="section-subtitle">Las primeras 6 tareas por atender</div>
+      <div class="section-title">Tareas del evento</div>
+      <div class="section-subtitle" id="tareas-subtitle">Todas las tareas</div>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn btn-sm btn-primary"  onclick="filtrarTabla('Todos')">Todos</button>
+      <button class="btn btn-sm btn-outline"  onclick="filtrarTabla('Pendiente')">Pendiente</button>
+      <button class="btn btn-sm btn-outline"  onclick="filtrarTabla('En proceso')">En proceso</button>
+      <button class="btn btn-sm btn-outline"  onclick="filtrarTabla('Completado')">Completado</button>
     </div>
   </div>
+
   <div class="table-wrap">
-    <table>
+    <table id="tabla-tareas">
       <thead>
         <tr><th>Tarea</th><th>Secretaria</th><th>Límite</th><th>Estado</th></tr>
       </thead>
-      <tbody>
-        {% for t in tareas_recientes %}
-        <tr>
+      <tbody id="tabla-body">
+        {% for t in todas_tareas %}
+        <tr data-estado="{{ t.estado }}">
           <td class="text-bold">{{ t.titulo }}</td>
           <td class="text-muted">{{ t.nombre_secretaria }}</td>
           <td class="text-muted">{{ t.fecha_limite or '—' }}</td>
@@ -135,12 +142,197 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="4" class="text-muted" style="text-align:center;padding:32px 0;">Sin tareas registradas.</td></tr>
+        <tr id="fila-vacia"><td colspan="4" class="text-muted" style="text-align:center;padding:32px 0;">Sin tareas registradas.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+
+  <!-- Paginación -->
+  <div id="paginacion" style="display:flex; align-items:center; justify-content:space-between; margin-top:14px; flex-wrap:wrap; gap:8px;">
+    <span id="pag-info" style="font-size:13px; color:var(--muted);"></span>
+    <div style="display:flex; gap:6px;">
+      <button id="btn-ant" class="btn btn-outline btn-sm" onclick="cambiarPag(-1)">
+        <i class="ti ti-chevron-left"></i> Anterior
+      </button>
+      <button id="btn-sig" class="btn btn-outline btn-sm" onclick="cambiarPag(1)">
+        Siguiente <i class="ti ti-chevron-right"></i>
+      </button>
+    </div>
+  </div>
 </div>
 
+<!-- MODAL: MESAS POR CURSO -->
+<div class="modal-overlay" id="modal-mesas" onclick="if(event.target===this)cerrarModalMesas()">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-header">
+      <div class="modal-title">
+        <i class="ti ti-chart-pie" style="margin-right:6px;color:var(--blue);"></i>Mesas ocupadas por curso
+      </div>
+      <button class="modal-close" onclick="cerrarModalMesas()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      {% if mesas_por_curso %}
+      <div style="position:relative;height:260px;margin-bottom:20px;">
+        <canvas id="chartMesasCurso"></canvas>
+      </div>
+      <!-- Leyenda -->
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        {% set total_ocupadas = total_mesas - mesas_libres %}
+        {% for c in mesas_por_curso %}
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:12px;height:12px;border-radius:3px;background:{{ c.color }};flex-shrink:0;"></div>
+          <span style="flex:1;font-size:13px;font-weight:600;">{{ c.nombre }}</span>
+          <span class="badge badge-gray">{{ c.total }} mesa{{ 's' if c.total != 1 else '' }}</span>
+          <span style="font-size:13px;font-weight:700;color:{{ c.color }};">
+            {{ ((c.total / total_ocupadas) * 100) | round(1) }}%
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:32px 0;color:var(--muted);">
+        <i class="ti ti-table-off" style="font-size:40px;opacity:.3;"></i>
+        <div style="margin-top:8px;">No hay mesas ocupadas aún.</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script id="datos-mesas-curso" type="application/json">
+{{ mesas_por_curso | tojson }}
+</script>
+
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var POR_PAGINA = 10;
+var paginaActual = 0;
+var filasFiltradas = [];
+
+function todasLasFilas() {
+  return Array.from(document.querySelectorAll('#tabla-body tr[data-estado]'));
+}
+
+function filtrarTabla(estado) {
+  /* Actualizar botones activos */
+  document.querySelectorAll('.section-header .btn').forEach(function(b) {
+    var esFiltro = b.textContent.trim() === estado || (estado === 'Todos' && b.textContent.trim() === 'Todos');
+    b.className = 'btn btn-sm ' + (b.textContent.trim() === estado ? 'btn-primary' : 'btn-outline');
+  });
+
+  filasFiltradas = todasLasFilas().filter(function(tr) {
+    return estado === 'Todos' || tr.dataset.estado === estado;
+  });
+
+  paginaActual = 0;
+  renderPagina();
+
+  var subtitulo = document.getElementById('tareas-subtitle');
+  if (subtitulo) {
+    subtitulo.textContent = estado === 'Todos'
+      ? 'Todas las tareas (' + filasFiltradas.length + ')'
+      : estado + ' — ' + filasFiltradas.length + ' tarea' + (filasFiltradas.length !== 1 ? 's' : '');
+  }
+}
+
+function renderPagina() {
+  var todas = todasLasFilas();
+  todas.forEach(function(tr) { tr.style.display = 'none'; });
+
+  var inicio = paginaActual * POR_PAGINA;
+  var fin    = Math.min(inicio + POR_PAGINA, filasFiltradas.length);
+  filasFiltradas.slice(inicio, fin).forEach(function(tr) { tr.style.display = ''; });
+
+  var totalPags = Math.ceil(filasFiltradas.length / POR_PAGINA);
+  var info = document.getElementById('pag-info');
+  var btnAnt = document.getElementById('btn-ant');
+  var btnSig = document.getElementById('btn-sig');
+  var paginacion = document.getElementById('paginacion');
+
+  if (info) {
+    info.textContent = filasFiltradas.length > 0
+      ? 'Mostrando ' + (inicio + 1) + '–' + fin + ' de ' + filasFiltradas.length
+      : 'Sin resultados';
+  }
+
+  if (btnAnt) btnAnt.disabled = paginaActual === 0;
+  if (btnSig) btnSig.disabled = paginaActual >= totalPags - 1;
+
+  /* Ocultar paginación si caben todos en una página */
+  if (paginacion) paginacion.style.display = filasFiltradas.length > POR_PAGINA ? 'flex' : 'none';
+}
+
+function cambiarPag(dir) {
+  var totalPags = Math.ceil(filasFiltradas.length / POR_PAGINA);
+  paginaActual = Math.max(0, Math.min(paginaActual + dir, totalPags - 1));
+  renderPagina();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  filtrarTabla('Todos');
+});
+
+function irTareasPendientes() {
+  filtrarTabla('Pendiente');
+  var tabla = document.getElementById('tabla-tareas');
+  if (tabla) tabla.closest('.card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ── Modal mesas por curso ── */
+var chartMesas = null;
+
+function abrirModalMesas() {
+  document.getElementById('modal-mesas').classList.add('open');
+  if (chartMesas) return;
+
+  var raw = JSON.parse(document.getElementById('datos-mesas-curso').textContent);
+  if (!raw || !raw.length) return;
+
+  var ctx = document.getElementById('chartMesasCurso');
+  if (!ctx) return;
+
+  chartMesas = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: raw.map(function(d) { return d.nombre; }),
+      datasets: [{
+        data: raw.map(function(d) { return d.total; }),
+        backgroundColor: raw.map(function(d) { return d.color; }),
+        borderWidth: 3,
+        borderColor: '#fff',
+        hoverOffset: 8,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '60%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              var total = ctx.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+              var pct   = ((ctx.parsed / total) * 100).toFixed(1);
+              return ' ' + ctx.parsed + ' mesa' + (ctx.parsed !== 1 ? 's' : '') + ' (' + pct + '%)';
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function cerrarModalMesas() {
+  document.getElementById('modal-mesas').classList.remove('open');
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') cerrarModalMesas();
+});
+</script>
 {% endblock %}

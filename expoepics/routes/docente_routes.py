@@ -114,10 +114,17 @@ def dashboard():
         "WHERE g.id_evento=%s AND c.id_docente=%s ORDER BY p.id_proyecto DESC LIMIT 5",
         (id_evento, id_docente))
 
+    todas_tareas = query(
+        "SELECT t.titulo, t.estado, t.descripcion, t.fecha_limite, t.comentario "
+        "FROM tarea t WHERE t.id_evento=%s "
+        "ORDER BY FIELD(t.estado,'En proceso','Pendiente','Completado'), t.fecha_limite ASC",
+        (id_evento,))
+
     return render_template('docente/dashboard.html',
                            evento=evento,
                            metricas=metricas,
                            proyectos_recientes=proyectos_recientes,
+                           todas_tareas=todas_tareas,
                            chart_cursos=json.dumps(chart_cursos, default=str),
                            chart_estados=json.dumps(chart_estados, default=str))
 

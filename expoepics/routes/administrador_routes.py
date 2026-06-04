@@ -38,15 +38,23 @@ def dashboard():
     conteos.setdefault('Completado', 0)
     conteos['Total'] = sum(conteos.values())
 
-    tareas_recientes = query(
+    todas_tareas = query(
         "SELECT t.id_tarea, t.titulo, t.estado, t.fecha_limite, "
         "CONCAT(p.nombre,' ',p.apellido) AS nombre_secretaria "
         "FROM tarea t "
         "JOIN secretaria s ON t.id_secretaria=s.id_secretaria "
         "JOIN persona p ON s.id_persona=p.id_persona "
         "WHERE t.id_evento=%s "
-        "ORDER BY FIELD(t.estado,'En proceso','Pendiente','Completado'), t.fecha_limite ASC "
-        "LIMIT 6",
+        "ORDER BY FIELD(t.estado,'En proceso','Pendiente','Completado'), t.fecha_limite ASC",
+        (id_evento,))
+
+    mesas_por_curso = query(
+        "SELECT c.nombre, c.color, COUNT(g.id_grupo) AS total "
+        "FROM grupo g "
+        "JOIN curso c ON g.id_curso = c.id_curso "
+        "WHERE g.id_evento=%s "
+        "GROUP BY c.id_curso, c.nombre, c.color "
+        "ORDER BY total DESC",
         (id_evento,))
 
     return render_template('admin/dashboard.html',
@@ -54,7 +62,8 @@ def dashboard():
                            total_mesas=total_mesas,
                            mesas_libres=mesas_libres,
                            conteos=conteos,
-                           tareas_recientes=tareas_recientes)
+                           todas_tareas=todas_tareas,
+                           mesas_por_curso=mesas_por_curso)
 
 
 @admin_bp.route('/mesas')

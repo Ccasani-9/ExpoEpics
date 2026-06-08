@@ -50,6 +50,14 @@
            class="nav-item {% if 'registro' in (request.endpoint or '') or 'estudiante' in (request.endpoint or '') and 'docente' in (request.endpoint or '') %}active{% endif %}">
           <i class="ti ti-users-plus"></i> Registro de Estudiantes
         </a>
+        <a href="{{ url_for('docente.asistencia') }}"
+           class="nav-item {% if 'asistencia' in (request.endpoint or '') and 'docente' in (request.endpoint or '') %}active{% endif %}">
+          <i class="ti ti-clipboard-check"></i> Asistencia
+        </a>
+        <a href="{{ url_for('docente.ajustes') }}"
+           class="nav-item {% if request.endpoint == 'docente.ajustes' %}active{% endif %}">
+          <i class="ti ti-settings"></i> Ajustes ExpoEpics
+        </a>
         <a href="{{ url_for('docente.cuenta') }}"
            class="nav-item {% if request.endpoint == 'docente.cuenta' %}active{% endif %}">
           <i class="ti ti-user-circle"></i> Mi Cuenta
@@ -63,6 +71,18 @@
         <a href="{{ url_for('secretaria.tareas') }}"
            class="nav-item {% if 'tarea' in (request.endpoint or '') %}active{% endif %}">
           <i class="ti ti-checklist"></i> Tareas
+        </a>
+        <a href="{{ url_for('secretaria.asistencia') }}"
+           class="nav-item {% if 'asistencia' in (request.endpoint or '') %}active{% endif %}">
+          <i class="ti ti-clipboard-check"></i> Asistencia
+        </a>
+        <a href="{{ url_for('secretaria.diplomas') }}"
+           class="nav-item {% if 'diploma' in (request.endpoint or '') %}active{% endif %}">
+          <i class="ti ti-certificate"></i> Diplomas
+        </a>
+        <a href="{{ url_for('secretaria.ajustes') }}"
+           class="nav-item {% if request.endpoint == 'secretaria.ajustes' %}active{% endif %}">
+          <i class="ti ti-settings"></i> Ajustes ExpoEpics
         </a>
         <a href="{{ url_for('secretaria.cuenta') }}"
            class="nav-item {% if request.endpoint == 'secretaria.cuenta' %}active{% endif %}">
@@ -150,7 +170,12 @@
       <h1 class="page-title">{% block page_title %}ExpoEpics{% endblock %}</h1>
       <div class="topbar-actions">
         <span class="badge badge-blue" style="font-size:12px; padding:5px 10px;">
-          <i class="ti ti-calendar-event"></i> ExpoEpics 2026 — Ciclo 1
+          <i class="ti ti-calendar-event"></i>
+          {% if g_evento %}
+            ExpoEpics {{ g_evento.edicion }}° Edición — {{ g_evento.semestre }} ({{ g_evento.anio }})
+          {% else %}
+            ExpoEpics
+          {% endif %}
         </span>
         <a href="{{ url_for('auth.logout') }}" class="btn btn-outline btn-sm">
           <i class="ti ti-logout"></i> Salir

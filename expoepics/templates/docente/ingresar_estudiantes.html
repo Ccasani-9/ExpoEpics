@@ -56,6 +56,9 @@
     <button class="btn btn-danger btn-sm" id="btn-modo-eliminar" onclick="toggleModoEliminar()" {% if not estudiantes %}disabled{% endif %}>
       <i class="ti ti-trash"></i> Eliminar Estudiantes
     </button>
+    <button class="btn btn-outline" onclick="abrirModalImportar()">
+      <i class="ti ti-file-spreadsheet"></i> Importar Excel
+    </button>
     <button class="btn btn-primary" onclick="abrirModalAgregar()">
       <i class="ti ti-user-plus"></i> Agregar Estudiante
     </button>
@@ -80,7 +83,6 @@
             <th>Estudiante</th>
             <th>DNI</th>
             <th>Correo</th>
-            <th>Código</th>
             <th>Ciclo</th>
             <th style="width:60px;"></th>
           </tr>
@@ -94,7 +96,7 @@
 
 <!-- Datos de estudiantes como JSON para paginación JS -->
 <script id="datos-estudiantes" type="application/json">
-[{% for est in estudiantes %}{"id":"{{ est.id_inscripcion }}","nombre":"{{ est.nombre | e }}","apellido":"{{ est.apellido | e }}","dni":"{{ est.dni }}","correo":"{{ est.correo | e }}","codigo":"{{ est.codigo | e }}","ciclo":{{ est.ciclo }},"color":"{{ curso_actual.color }}","del_url":"{{ url_for('docente.eliminar_estudiante', id_inscripcion=est.id_inscripcion) }}"}{% if not loop.last %},{% endif %}{% endfor %}]
+[{% for est in estudiantes %}{"id":"{{ est.id_inscripcion }}","nombre":"{{ est.nombre | e }}","apellido":"{{ est.apellido | e }}","dni":"{{ est.dni }}","correo":"{{ est.correo | e }}","ciclo":{{ est.ciclo }},"color":"{{ curso_actual.color }}","del_url":"{{ url_for('docente.eliminar_estudiante', id_inscripcion=est.id_inscripcion) }}"}{% if not loop.last %},{% endif %}{% endfor %}]
 </script>
 
 {% else %}
@@ -138,10 +140,6 @@
                    required>
           </div>
           <div class="form-group">
-            <label>Código universitario <span style="color:var(--danger);">*</span></label>
-            <input type="text" name="codigo" placeholder="2024001" required>
-          </div>
-          <div class="form-group">
             <label>Nombre(s) <span style="color:var(--danger);">*</span></label>
             <input type="text" name="nombre" placeholder="Juan Carlos" required>
           </div>
@@ -181,6 +179,72 @@
           </button>
           <button type="submit" class="btn btn-primary">
             <i class="ti ti-user-plus"></i> Registrar estudiante
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: IMPORTAR EXCEL ══ -->
+<div class="modal-overlay" id="modal-importar" onclick="cerrarModalImportar(event)">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-header">
+      <div class="modal-title">
+        <i class="ti ti-file-spreadsheet" style="margin-right:6px; color:var(--blue);"></i>
+        Importar Estudiantes desde Excel
+      </div>
+      <button class="modal-close" onclick="cerrarModalImportarBtn()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <form method="POST" action="{{ url_for('docente.importar_estudiantes') }}"
+            enctype="multipart/form-data" id="form-importar">
+        <input type="hidden" name="id_curso" value="{{ curso_actual.id_curso }}">
+
+        <!-- Formato esperado -->
+        <div style="margin-bottom:16px; padding:12px 14px; background:#f0f9ff; border-radius:8px; border:1px solid #bae6fd;">
+          <div style="font-size:12px; font-weight:700; color:#0369a1; margin-bottom:6px;">
+            <i class="ti ti-info-circle"></i> Formato del archivo Excel
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:4px;">
+            <div style="text-align:center; padding:5px 4px; background:#0284c7; color:#fff; border-radius:5px; font-size:11px; font-weight:700;">A<br>DNI</div>
+            <div style="text-align:center; padding:5px 4px; background:#0284c7; color:#fff; border-radius:5px; font-size:11px; font-weight:700;">B<br>APELLIDOS</div>
+            <div style="text-align:center; padding:5px 4px; background:#0284c7; color:#fff; border-radius:5px; font-size:11px; font-weight:700;">C<br>NOMBRES</div>
+            <div style="text-align:center; padding:5px 4px; background:#0284c7; color:#fff; border-radius:5px; font-size:11px; font-weight:700;">D<br>CORREO</div>
+          </div>
+          <div style="font-size:11px; color:#0369a1; margin-top:6px;">
+            La fila 1 se omite (encabezados). Los datos inician desde la fila 2.
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:14px;">
+          <label>¿En qué ciclo están los estudiantes? <span style="color:var(--danger);">*</span></label>
+          <select name="ciclo" id="importar-ciclo" required>
+            <option value="">— Selecciona el ciclo —</option>
+            {% for n in range(1, 11) %}
+            <option value="{{ n }}" {% if n == curso_actual.ciclo %}selected{% endif %}>
+              {{ n }}° ciclo
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:6px;">
+          <label>Archivo Excel (.xlsx) <span style="color:var(--danger);">*</span></label>
+          <input type="file" name="archivo_excel" id="importar-archivo"
+                 accept=".xlsx,.xls"
+                 style="width:100%; padding:8px 10px; border:1.5px solid var(--border);
+                        border-radius:8px; font-size:13px; font-family:inherit;
+                        color:var(--text); background:#fff; cursor:pointer;"
+                 required>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:18px; justify-content:flex-end;">
+          <button type="button" class="btn btn-outline" onclick="cerrarModalImportarBtn()">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <i class="ti ti-upload"></i> Importar estudiantes
           </button>
         </div>
       </form>
@@ -389,8 +453,26 @@ select:focus { border-color: var(--blue); }
     if (e.target === document.getElementById('modal-agregar')) cerrarModalAgregarBtn();
   }
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') cerrarModalAgregarBtn();
+    if (e.key === 'Escape') {
+      cerrarModalAgregarBtn();
+      cerrarModalImportarBtn();
+    }
   });
+
+  /* ════════════════════════════════════════
+     MODAL IMPORTAR EXCEL
+  ════════════════════════════════════════ */
+  function abrirModalImportar() {
+    document.getElementById('modal-importar').classList.add('open');
+    document.getElementById('importar-ciclo').focus();
+  }
+  function cerrarModalImportarBtn() {
+    document.getElementById('modal-importar').classList.remove('open');
+    document.getElementById('form-importar').reset();
+  }
+  function cerrarModalImportar(e) {
+    if (e.target === document.getElementById('modal-importar')) cerrarModalImportarBtn();
+  }
 
   /* ════════════════════════════════════════
      MODO ELIMINAR
@@ -507,7 +589,6 @@ select:focus { border-color: var(--blue); }
         + '<div class="est-data">'
         + '<div class="est-data-row"><i class="ti ti-id-badge-2"></i><span>' + est.dni + '</span></div>'
         + '<div class="est-data-row"><i class="ti ti-mail"></i><span class="est-truncate" title="' + escHtml(est.correo) + '">' + escHtml(est.correo) + '</span></div>'
-        + '<div class="est-data-row"><i class="ti ti-hash"></i><span>' + escHtml(est.codigo) + '</span></div>'
         + '<div class="est-data-row"><i class="ti ti-calendar"></i><span>' + est.ciclo + '° ciclo</span></div>'
         + '</div></div>';
     });
@@ -545,7 +626,6 @@ select:focus { border-color: var(--blue); }
         + '</div></td>'
         + '<td class="text-muted">' + est.dni + '</td>'
         + '<td class="text-muted">' + escHtml(est.correo) + '</td>'
-        + '<td>' + escHtml(est.codigo) + '</td>'
         + '<td>' + est.ciclo + '° ciclo</td>'
         + '<td><form method="POST" action="' + est.del_url + '" onsubmit="return confirmarEliminar(\'' + escHtml(est.nombre + ' ' + est.apellido) + '\')">'
         + '<button type="submit" class="btn-del-tabla"><i class="ti ti-trash"></i> Eliminar</button>'
@@ -575,16 +655,28 @@ select:focus { border-color: var(--blue); }
     }
 
     /* Reabrir modal si hubo error de validación */
+    var urlParams = new URLSearchParams(window.location.search);
+    var abrirImportar = urlParams.get('modal') === 'importar';
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
+        var hayErrorAgregar = false;
         {% for cat, msg in messages %}
           {% if cat == 'danger' or cat == 'warning' %}
             (function() {
               var m = "{{ msg | e }}";
-              if (m.indexOf('eliminado') === -1) abrirModalAgregar();
+              /* Mensajes de importar Excel — nunca reabren el modal de agregar */
+              var ml = m.toLowerCase();
+              var esImportar = ml.indexOf('importado') !== -1 || ml.indexOf('inscritos') !== -1
+                            || ml.indexOf('procesó') !== -1 || ml.indexOf('fila') !== -1
+                            || ml.indexOf('.xlsx') !== -1 || ml.indexOf('excel') !== -1
+                            || ml.indexOf('ciclo válido') !== -1;
+              if (m.indexOf('eliminado') !== -1 || esImportar) return;
+              hayErrorAgregar = true;
             })();
           {% endif %}
         {% endfor %}
+        if (abrirImportar) abrirModalImportar();
+        else if (hayErrorAgregar) abrirModalAgregar();
       {% endif %}
     {% endwith %}
   });

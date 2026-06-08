@@ -748,13 +748,9 @@ function crearGrupo() {
     body: JSON.stringify({ id_curso: ID_CURSO, nombre: nombre, color: colorSel, id_espacio: idEspacio })
   })
   .then(function(r) {
-    if (!r.ok) {
-      return r.text().then(function(t) {
-        /* respuesta no-JSON (ej: redirect a login) */
-        throw new Error('Error del servidor (' + r.status + '). Recarga la página e intenta de nuevo.');
-      });
-    }
-    return r.json();
+    return r.text().then(function(txt) {
+      try { return JSON.parse(txt); } catch(e) { throw new Error('Respuesta no válida del servidor (' + r.status + ')'); }
+    });
   })
   .then(function(data){
     if (data.error) { mostrarErrModal(data.error); return; }

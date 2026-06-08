@@ -42,7 +42,7 @@ def proyecto():
         "WHERE g.id_grupo=%s", (eg['id_grupo'],), fetch_one=True)
 
     integrantes = query(
-        "SELECT per.nombre, per.apellido, est.id_estudiante, est.codigo, "
+        "SELECT per.nombre, per.apellido, est.id_estudiante, "
         "CASE WHEN g.id_lider=est.id_estudiante THEN 1 ELSE 0 END AS es_lider "
         "FROM estudiante_grupo eg2 JOIN estudiante est ON eg2.id_estudiante=est.id_estudiante "
         "JOIN persona per ON est.id_persona=per.id_persona "
@@ -141,10 +141,9 @@ def agregar_integrante():
     nombre   = request.form.get('nombre', '').strip()
     apellido = request.form.get('apellido', '').strip()
     correo   = request.form.get('correo', '').strip().lower()
-    codigo   = request.form.get('codigo', '').strip()
     ciclo    = request.form.get('ciclo', '').strip()
 
-    if not all([dni, nombre, apellido, correo, codigo, ciclo]):
+    if not all([dni, nombre, apellido, correo, ciclo]):
         flash('Todos los campos son obligatorios.', 'danger')
         return redirect(url_for('estudiante.proyecto'))
 
@@ -160,10 +159,6 @@ def agregar_integrante():
         flash(f'El correo {correo} ya está registrado.', 'danger')
         return redirect(url_for('estudiante.proyecto'))
 
-    if query("SELECT id_estudiante FROM estudiante WHERE codigo=%s", (codigo,), fetch_one=True):
-        flash(f'El código {codigo} ya está registrado.', 'danger')
-        return redirect(url_for('estudiante.proyecto'))
-
     hashed = bcrypt.hashpw(dni.encode(), bcrypt.gensalt()).decode()
     id_persona = query(
         "INSERT INTO persona (dni, nombre, apellido, correo, contrasena, contrasena_temporal) "
@@ -171,8 +166,8 @@ def agregar_integrante():
         (dni, nombre, apellido, correo, hashed), commit=True)
 
     id_estudiante = query(
-        "INSERT INTO estudiante (id_persona, codigo, ciclo) VALUES (%s, %s, %s)",
-        (id_persona, codigo, int(ciclo)), commit=True)
+        "INSERT INTO estudiante (id_persona, ciclo) VALUES (%s, %s)",
+        (id_persona, int(ciclo)), commit=True)
 
     query("INSERT INTO estudiante_grupo (id_estudiante, id_grupo) VALUES (%s, %s)",
           (id_estudiante, eg['id_grupo']), commit=True)

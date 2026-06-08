@@ -136,7 +136,7 @@ def api_estudiantes():
     if not evento:
         return jsonify([])
     rows = query(
-        "SELECT DISTINCT pe.nombre, pe.apellido, pe.correo, pe.dni, es.codigo, es.ciclo "
+        "SELECT DISTINCT pe.nombre, pe.apellido, pe.correo, pe.dni, es.ciclo "
         "FROM estudiante_grupo eg "
         "JOIN grupo g ON eg.id_grupo = g.id_grupo "
         "JOIN estudiante es ON eg.id_estudiante = es.id_estudiante "
@@ -157,7 +157,7 @@ def api_grupos():
     rows = query(
         "SELECT g.id_grupo, c.nombre AS nombre_curso, c.color, e.num_mesa, e.ubicacion, "
         "       p.nombre AS nombre_proyecto, p.estado AS estado_proyecto, "
-        "       pe.nombre, pe.apellido, pe.correo, pe.dni, es.codigo, es.ciclo, "
+        "       pe.nombre, pe.apellido, pe.correo, pe.dni, es.ciclo, "
         "       CASE WHEN g.id_lider = es.id_estudiante THEN 1 ELSE 0 END AS es_lider "
         "FROM grupo g "
         "JOIN curso c ON g.id_curso = c.id_curso "
@@ -188,7 +188,6 @@ def api_grupos():
             'apellido': r['apellido'],
             'correo': r['correo'],
             'dni': r['dni'],
-            'codigo': r['codigo'],
             'ciclo': r['ciclo'],
             'es_lider': bool(r['es_lider'])
         })
@@ -280,7 +279,7 @@ def proyecto_detalle(id_proyecto):
         return redirect(url_for('docente.proyectos'))
 
     integrantes = query(
-        "SELECT per.nombre, per.apellido, est.id_estudiante, est.codigo, "
+        "SELECT per.nombre, per.apellido, est.id_estudiante, "
         "CASE WHEN g.id_lider=est.id_estudiante THEN 1 ELSE 0 END AS es_lider "
         "FROM estudiante_grupo eg "
         "JOIN estudiante est ON eg.id_estudiante=est.id_estudiante "
@@ -651,7 +650,7 @@ def ingresar_estudiantes():
 
     estudiantes = query(
         "SELECT ic.id_inscripcion, p.dni, p.nombre, p.apellido, p.correo, "
-        "es.codigo, es.ciclo, es.id_estudiante "
+        "es.ciclo, es.id_estudiante "
         "FROM inscripcion_curso ic "
         "JOIN estudiante es ON ic.id_estudiante = es.id_estudiante "
         "JOIN persona p ON es.id_persona = p.id_persona "
@@ -673,7 +672,6 @@ def agregar_estudiante():
     nombre   = request.form.get('nombre', '').strip()
     apellido = request.form.get('apellido', '').strip()
     correo   = request.form.get('correo', '').strip().lower()
-    codigo   = request.form.get('codigo', '').strip()
     ciclo    = request.form.get('ciclo', type=int)
 
     curso = query(
@@ -683,18 +681,12 @@ def agregar_estudiante():
         flash('Curso no válido.', 'danger')
         return redirect(url_for('docente.registro_estudiantes'))
 
-    if not all([dni, nombre, apellido, correo, codigo, ciclo]):
+    if not all([dni, nombre, apellido, correo, ciclo]):
         flash('Todos los campos son obligatorios.', 'danger')
         return redirect(url_for('docente.ingresar_estudiantes', curso=id_curso))
 
     if len(dni) != 8 or not dni.isdigit():
         flash('El DNI debe tener exactamente 8 dígitos numéricos.', 'danger')
-        return redirect(url_for('docente.ingresar_estudiantes', curso=id_curso))
-
-    codigo_dup = query(
-        "SELECT id_estudiante FROM estudiante WHERE codigo=%s", (codigo,), fetch_one=True)
-    if codigo_dup:
-        flash('Ya existe un estudiante con ese código universitario.', 'danger')
         return redirect(url_for('docente.ingresar_estudiantes', curso=id_curso))
 
     persona_existente = query(
@@ -709,8 +701,8 @@ def agregar_estudiante():
         if est_existente:
             id_estudiante = est_existente['id_estudiante']
         else:
-            query("INSERT INTO estudiante (id_persona, codigo, ciclo) VALUES (%s,%s,%s)",
-                  (id_persona, codigo, ciclo), commit=True)
+            query("INSERT INTO estudiante (id_persona, ciclo) VALUES (%s,%s)",
+                  (id_persona, ciclo), commit=True)
             est = query("SELECT id_estudiante FROM estudiante WHERE id_persona=%s",
                         (id_persona,), fetch_one=True)
             id_estudiante = est['id_estudiante']
@@ -723,8 +715,8 @@ def agregar_estudiante():
         persona_nueva = query(
             "SELECT id_persona FROM persona WHERE dni=%s", (dni,), fetch_one=True)
         id_persona = persona_nueva['id_persona']
-        query("INSERT INTO estudiante (id_persona, codigo, ciclo) VALUES (%s,%s,%s)",
-              (id_persona, codigo, ciclo), commit=True)
+        query("INSERT INTO estudiante (id_persona, ciclo) VALUES (%s,%s)",
+              (id_persona, ciclo), commit=True)
         est = query("SELECT id_estudiante FROM estudiante WHERE id_persona=%s",
                     (id_persona,), fetch_one=True)
         id_estudiante = est['id_estudiante']
@@ -740,6 +732,132 @@ def agregar_estudiante():
         query("INSERT INTO inscripcion_curso (id_estudiante, id_curso) VALUES (%s,%s)",
               (id_estudiante, id_curso), commit=True)
         flash(f'{nombre} {apellido} registrado exitosamente.', 'success')
+
+    return redirect(url_for('docente.ingresar_estudiantes', curso=id_curso))
+
+
+@docente_bp.route('/registro-estudiantes/importar', methods=['POST'])
+@role_required('docente')
+def importar_estudiantes():
+    import openpyxl, io
+
+    id_curso = request.form.get('id_curso', type=int)
+    ciclo    = request.form.get('ciclo', type=int)
+    archivo  = request.files.get('archivo_excel')
+
+    curso = query(
+        "SELECT id_curso FROM curso WHERE id_curso=%s AND id_docente=%s",
+        (id_curso, session['role_id']), fetch_one=True)
+    if not curso:
+        flash('Curso no válido.', 'danger')
+        return redirect(url_for('docente.registro_estudiantes'))
+
+    if not archivo or not archivo.filename:
+        flash('Debes seleccionar un archivo Excel (.xlsx).', 'danger')
+        return redirect(url_for('docente.ingresar_estudiantes', curso=id_curso, modal='importar'))
+
+    if not ciclo or not (1 <= ciclo <= 10):
+        flash('Selecciona un ciclo válido (1 al 10).', 'danger')
+        return redirect(url_for('docente.ingresar_estudiantes', curso=id_curso, modal='importar'))
+
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(archivo.read()))
+        ws = wb.active
+    except Exception:
+        flash('El archivo no es un Excel válido (.xlsx).', 'danger')
+        return redirect(url_for('docente.ingresar_estudiantes', curso=id_curso, modal='importar'))
+
+    importados   = 0
+    ya_inscritos = 0
+    errores      = []
+
+    for fila, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+        if not any(row):
+            continue
+
+        # Columnas: A=DNI  B=APELLIDOS  C=NOMBRES  D=CORREO INSTITUCIONAL
+        raw_dni      = row[0]
+        raw_apellido = row[1]
+        raw_nombre   = row[2]
+        raw_correo   = row[3] if len(row) > 3 else None
+
+        if isinstance(raw_dni, float):
+            raw_dni = int(raw_dni)
+        dni      = str(raw_dni or '').strip().zfill(8) if isinstance(raw_dni, int) else str(raw_dni or '').strip()
+        apellido = str(raw_apellido or '').strip().upper()
+        nombre   = str(raw_nombre or '').strip().upper()
+        correo   = str(raw_correo or '').strip().lower()
+
+        if not all([dni, apellido, nombre, correo]):
+            errores.append(f'Fila {fila}: datos incompletos (se requieren DNI, apellidos, nombres y correo).')
+            continue
+
+        if len(dni) != 8 or not dni.isdigit():
+            errores.append(f'Fila {fila}: DNI "{dni}" inválido (debe tener exactamente 8 dígitos).')
+            continue
+
+        try:
+            persona_existente = query(
+                "SELECT id_persona FROM persona WHERE dni=%s OR correo=%s",
+                (dni, correo), fetch_one=True)
+
+            if persona_existente:
+                id_persona = persona_existente['id_persona']
+                est_existente = query(
+                    "SELECT id_estudiante FROM estudiante WHERE id_persona=%s",
+                    (id_persona,), fetch_one=True)
+                if est_existente:
+                    id_estudiante = est_existente['id_estudiante']
+                else:
+                    query("INSERT INTO estudiante (id_persona, ciclo) VALUES (%s,%s)",
+                          (id_persona, ciclo), commit=True)
+                    est = query("SELECT id_estudiante FROM estudiante WHERE id_persona=%s",
+                                (id_persona,), fetch_one=True)
+                    id_estudiante = est['id_estudiante']
+            else:
+                temp_pass = bcrypt.hashpw(dni.encode(), bcrypt.gensalt()).decode()
+                query(
+                    "INSERT INTO persona (dni, nombre, apellido, correo, contrasena, contrasena_temporal) "
+                    "VALUES (%s,%s,%s,%s,%s,%s)",
+                    (dni, nombre, apellido, correo, temp_pass, True), commit=True)
+                persona_nueva = query(
+                    "SELECT id_persona FROM persona WHERE dni=%s", (dni,), fetch_one=True)
+                id_persona = persona_nueva['id_persona']
+                query("INSERT INTO estudiante (id_persona, ciclo) VALUES (%s,%s)",
+                      (id_persona, ciclo), commit=True)
+                est = query("SELECT id_estudiante FROM estudiante WHERE id_persona=%s",
+                            (id_persona,), fetch_one=True)
+                id_estudiante = est['id_estudiante']
+
+            ya_inscrito = query(
+                "SELECT id_inscripcion FROM inscripcion_curso "
+                "WHERE id_estudiante=%s AND id_curso=%s",
+                (id_estudiante, id_curso), fetch_one=True)
+
+            if ya_inscrito:
+                ya_inscritos += 1
+            else:
+                query("INSERT INTO inscripcion_curso (id_estudiante, id_curso) VALUES (%s,%s)",
+                      (id_estudiante, id_curso), commit=True)
+                importados += 1
+
+        except Exception:
+            errores.append(f'Fila {fila} ({apellido}, {nombre}): error inesperado al procesar.')
+
+    partes = []
+    if importados:
+        s = 's' if importados != 1 else ''
+        partes.append(f'{importados} estudiante{s} importado{s}')
+    if ya_inscritos:
+        partes.append(f'{ya_inscritos} ya estaban inscritos')
+    if errores:
+        partes.append(f'{len(errores)} fila{"s" if len(errores) != 1 else ""} con error')
+
+    resumen = ', '.join(partes) + '.' if partes else 'No se procesó ningún estudiante.'
+    cat = 'success' if importados and not errores else ('warning' if importados else 'danger')
+    flash(resumen, cat)
+    for err in errores[:5]:
+        flash(err, 'warning')
 
     return redirect(url_for('docente.ingresar_estudiantes', curso=id_curso))
 
@@ -763,6 +881,109 @@ def eliminar_estudiante(id_inscripcion):
           (id_inscripcion,), commit=True)
     flash('Estudiante eliminado del registro del curso.', 'success')
     return redirect(url_for('docente.ingresar_estudiantes', curso=id_curso))
+
+
+@docente_bp.route('/asistencia')
+@role_required('docente')
+def asistencia():
+    evento = _get_evento()
+    if not evento:
+        flash('No hay un evento activo.', 'warning')
+        return redirect(url_for('docente.dashboard'))
+
+    id_evento = evento['id_evento']
+
+    rows = query(
+        "SELECT c.id_curso, c.nombre AS nombre_curso, c.color, "
+        "       per.nombre, per.apellido, per.dni, per.correo, "
+        "       es.id_estudiante, "
+        "       COALESCE(pa.asistencia, 0) AS asistencia, "
+        "       pa.firma "
+        "FROM inscripcion_curso ic "
+        "JOIN curso c        ON ic.id_curso       = c.id_curso "
+        "JOIN estudiante es  ON ic.id_estudiante  = es.id_estudiante "
+        "JOIN persona per    ON es.id_persona     = per.id_persona "
+        "LEFT JOIN participacion pa "
+        "       ON pa.id_estudiante = es.id_estudiante AND pa.id_evento = %s "
+        "WHERE c.id_curso IN (SELECT DISTINCT id_curso FROM grupo WHERE id_evento = %s) "
+        "ORDER BY c.nombre, per.apellido, per.nombre",
+        (id_evento, id_evento))
+
+    cursos = {}
+    for r in rows:
+        cid = r['id_curso']
+        if cid not in cursos:
+            cursos[cid] = {
+                'id_curso':     cid,
+                'nombre_curso': r['nombre_curso'],
+                'color':        r['color'],
+                'estudiantes':  [],
+            }
+        cursos[cid]['estudiantes'].append({
+            'id_estudiante': r['id_estudiante'],
+            'dni':           r['dni'],
+            'nombre':        r['nombre'],
+            'apellido':      r['apellido'],
+            'correo':        r['correo'],
+            'asistencia':    bool(r['asistencia']),
+            'firma':         r['firma'],
+        })
+
+    return render_template('docente/asistencia.html',
+                           evento=evento,
+                           cursos=list(cursos.values()))
+
+
+@docente_bp.route('/asistencia/guardar', methods=['POST'])
+@role_required('docente')
+def asistencia_guardar():
+    data          = request.get_json()
+    id_estudiante = data.get('id_estudiante')
+    id_evento     = data.get('id_evento')
+    asistio       = bool(data.get('asistio', False))
+    firma         = data.get('firma') or None
+    if not asistio:
+        firma = None
+
+    query(
+        "INSERT INTO participacion (id_evento, id_estudiante, asistencia, firma) "
+        "VALUES (%s, %s, %s, %s) "
+        "ON DUPLICATE KEY UPDATE asistencia=%s, firma=%s",
+        (id_evento, id_estudiante, asistio, firma, asistio, firma),
+        commit=True)
+    return jsonify({'ok': True})
+
+
+@docente_bp.route('/ajustes', methods=['GET', 'POST'])
+@role_required('docente')
+def ajustes():
+    evento = _get_evento()
+
+    if request.method == 'POST':
+        if not evento:
+            flash('No hay evento activo. La secretaria debe configurarlo primero.', 'warning')
+            return redirect(url_for('docente.ajustes'))
+
+        edicion     = request.form.get('edicion',     type=int)
+        fecha       = request.form.get('fecha',       '').strip()
+        hora_inicio = request.form.get('hora_inicio', '').strip()
+        hora_fin    = request.form.get('hora_fin',    '').strip()
+        semestre    = request.form.get('semestre',    type=int)
+        anio        = request.form.get('anio',        type=int)
+
+        if not all([edicion, fecha, hora_inicio, hora_fin, semestre, anio]):
+            flash('Todos los campos son obligatorios.', 'danger')
+            return redirect(url_for('docente.ajustes'))
+
+        query(
+            "UPDATE evento SET edicion=%s, fecha=%s, hora_inicio=%s, hora_fin=%s, "
+            "semestre=%s, anio=%s WHERE id_evento=%s",
+            (edicion, fecha, hora_inicio, hora_fin, semestre, anio, evento['id_evento']),
+            commit=True)
+        flash('Ajustes de ExpoEpics guardados correctamente.', 'success')
+        return redirect(url_for('docente.ajustes'))
+
+    return render_template('docente/ajustes.html', evento=evento)
 
 
 @docente_bp.route('/cuenta', methods=['GET', 'POST'])

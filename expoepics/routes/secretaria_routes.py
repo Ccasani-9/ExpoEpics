@@ -8,10 +8,8 @@ from database import query
 secretaria_bp = Blueprint('secretaria', __name__, url_prefix='/secretaria')
 
 
-def _get_evento(id_secretaria):
-    return query(
-        "SELECT * FROM evento WHERE id_secretaria=%s ORDER BY fecha DESC LIMIT 1",
-        (id_secretaria,), fetch_one=True)
+def _get_evento():
+    return query("SELECT * FROM evento ORDER BY fecha DESC LIMIT 1", fetch_one=True)
 
 
 def _get_metricas(id_evento):
@@ -40,7 +38,7 @@ def _get_metricas(id_evento):
 @secretaria_bp.route('/dashboard')
 @role_required('secretaria')
 def dashboard():
-    evento = _get_evento(session['role_id'])
+    evento = _get_evento()
     if not evento:
         return render_template('secretaria/dashboard.html',
                                evento=None, metricas={},
@@ -90,11 +88,11 @@ def dashboard():
 @secretaria_bp.route('/api/estudiantes')
 @role_required('secretaria')
 def api_estudiantes():
-    evento = _get_evento(session['role_id'])
+    evento = _get_evento()
     if not evento:
         return jsonify([])
     rows = query(
-        "SELECT pe.nombre, pe.apellido, pe.correo, pe.dni, es.codigo, es.ciclo "
+        "SELECT pe.nombre, pe.apellido, pe.correo, pe.dni, es.ciclo "
         "FROM participacion pa "
         "JOIN estudiante es ON pa.id_estudiante = es.id_estudiante "
         "JOIN persona pe ON es.id_persona = pe.id_persona "
@@ -107,13 +105,13 @@ def api_estudiantes():
 @secretaria_bp.route('/api/grupos')
 @role_required('secretaria')
 def api_grupos():
-    evento = _get_evento(session['role_id'])
+    evento = _get_evento()
     if not evento:
         return jsonify([])
     rows = query(
         "SELECT g.id_grupo, c.nombre AS nombre_curso, c.color, e.num_mesa, e.ubicacion, "
         "       p.nombre AS nombre_proyecto, p.estado AS estado_proyecto, "
-        "       pe.nombre, pe.apellido, pe.correo, pe.dni, es.codigo, es.ciclo, "
+        "       pe.nombre, pe.apellido, pe.correo, pe.dni, es.ciclo, "
         "       CASE WHEN g.id_lider = es.id_estudiante THEN 1 ELSE 0 END AS es_lider "
         "FROM grupo g "
         "JOIN curso c ON g.id_curso = c.id_curso "
@@ -144,7 +142,6 @@ def api_grupos():
             'apellido': r['apellido'],
             'correo': r['correo'],
             'dni': r['dni'],
-            'codigo': r['codigo'],
             'ciclo': r['ciclo'],
             'es_lider': bool(r['es_lider'])
         })
@@ -154,7 +151,7 @@ def api_grupos():
 @secretaria_bp.route('/api/proyectos')
 @role_required('secretaria')
 def api_proyectos():
-    evento = _get_evento(session['role_id'])
+    evento = _get_evento()
     if not evento:
         return jsonify([])
     rows = query(
@@ -194,7 +191,7 @@ def api_proyectos():
 @secretaria_bp.route('/tareas')
 @role_required('secretaria')
 def tareas():
-    evento = _get_evento(session['role_id'])
+    evento = _get_evento()
     filtro = request.args.get('estado', 'Todos')
     if not evento:
         return render_template('secretaria/tareas.html', tareas=[], evento=None,
@@ -225,23 +222,24 @@ def tareas():
 @secretaria_bp.route('/tarea/nueva', methods=['GET', 'POST'])
 @role_required('secretaria')
 def tarea_nueva():
-    evento = _get_evento(session['role_id'])
+    evento = _get_evento()
     error  = None
     if not evento:
         flash('No hay un evento activo.', 'warning')
         return redirect(url_for('secretaria.tareas'))
 
     if request.method == 'POST':
-        titulo      = request.form.get('titulo', '').strip()
-        descripcion = request.form.get('descripcion', '').strip()
-        fecha_limite= request.form.get('fecha_limite', '') or None
+        titulo           = request.form.get('titulo', '').strip()
+        descripcion      = request.form.get('descripcion', '').strip()
+        area_involucrada = request.form.get('area_involucrada', '').strip() or None
+        fecha_limite     = request.form.get('fecha_limite', '') or None
         if not titulo:
             error = 'El título es obligatorio.'
         else:
             query(
-                "INSERT INTO tarea (id_secretaria,id_evento,titulo,descripcion,estado,comentario,fecha_creacion,fecha_limite) "
-                "VALUES(%s,%s,%s,%s,'Pendiente','', CURDATE(),%s)",
-                (session['role_id'], evento['id_evento'], titulo, descripcion, fecha_limite), commit=True)
+                "INSERT INTO tarea (id_secretaria,id_evento,titulo,area_involucrada,descripcion,estado,comentario,fecha_creacion,fecha_limite) "
+                "VALUES(%s,%s,%s,%s,%s,'Pendiente','',CURDATE(),%s)",
+                (session['role_id'], evento['id_evento'], titulo, area_involucrada, descripcion, fecha_limite), commit=True)
             flash('Tarea creada correctamente.', 'success')
             return redirect(url_for('secretaria.tareas'))
 
@@ -272,6 +270,217 @@ def agregar_comentario(id_tarea):
     query("UPDATE tarea SET comentario=%s WHERE id_tarea=%s AND id_secretaria=%s",
           (comentario, id_tarea, session['role_id']), commit=True)
     return redirect(url_for('secretaria.tareas'))
+
+
+@secretaria_bp.route('/asistencia')
+@role_required('secretaria')
+def asistencia():
+    evento = _get_evento()
+    if not evento:
+        flash('No hay un evento activo.', 'warning')
+        return redirect(url_for('secretaria.dashboard'))
+
+    id_evento = evento['id_evento']
+
+    rows = query(
+        "SELECT c.id_curso, c.nombre AS nombre_curso, c.color, "
+        "       per.nombre, per.apellido, per.dni, per.correo, "
+        "       es.id_estudiante, "
+        "       COALESCE(pa.asistencia, 0) AS asistencia, "
+        "       pa.firma "
+        "FROM inscripcion_curso ic "
+        "JOIN curso c   ON ic.id_curso      = c.id_curso "
+        "JOIN estudiante es ON ic.id_estudiante = es.id_estudiante "
+        "JOIN persona per   ON es.id_persona   = per.id_persona "
+        "LEFT JOIN participacion pa "
+        "       ON pa.id_estudiante = es.id_estudiante AND pa.id_evento = %s "
+        "WHERE c.id_curso IN (SELECT DISTINCT id_curso FROM grupo WHERE id_evento = %s) "
+        "ORDER BY c.nombre, per.apellido, per.nombre",
+        (id_evento, id_evento))
+
+    cursos = {}
+    for r in rows:
+        cid = r['id_curso']
+        if cid not in cursos:
+            cursos[cid] = {
+                'id_curso':      cid,
+                'nombre_curso':  r['nombre_curso'],
+                'color':         r['color'],
+                'estudiantes':   [],
+            }
+        cursos[cid]['estudiantes'].append({
+            'id_estudiante': r['id_estudiante'],
+            'dni':           r['dni'],
+            'nombre':        r['nombre'],
+            'apellido':      r['apellido'],
+            'correo':        r['correo'],
+            'asistencia':    bool(r['asistencia']),
+            'firma':         r['firma'],
+        })
+
+    return render_template('secretaria/asistencia.html',
+                           evento=evento,
+                           cursos=list(cursos.values()))
+
+
+@secretaria_bp.route('/asistencia/guardar', methods=['POST'])
+@role_required('secretaria')
+def asistencia_guardar():
+    data          = request.get_json()
+    id_estudiante = data.get('id_estudiante')
+    id_evento     = data.get('id_evento')
+    asistio       = bool(data.get('asistio', False))
+    firma         = data.get('firma') or None
+    if not asistio:
+        firma = None
+
+    query(
+        "INSERT INTO participacion (id_evento, id_estudiante, asistencia, firma) "
+        "VALUES (%s, %s, %s, %s) "
+        "ON DUPLICATE KEY UPDATE asistencia=%s, firma=%s",
+        (id_evento, id_estudiante, asistio, firma, asistio, firma),
+        commit=True)
+    return jsonify({'ok': True})
+
+
+@secretaria_bp.route('/ajustes', methods=['GET', 'POST'])
+@role_required('secretaria')
+def ajustes():
+    evento = _get_evento()
+
+    if request.method == 'POST':
+        edicion     = request.form.get('edicion',     type=int)
+        fecha       = request.form.get('fecha',       '').strip()
+        hora_inicio = request.form.get('hora_inicio', '').strip()
+        hora_fin    = request.form.get('hora_fin',    '').strip()
+        semestre    = request.form.get('semestre',    type=int)
+        anio        = request.form.get('anio',        type=int)
+
+        if not all([edicion, fecha, hora_inicio, hora_fin, semestre, anio]):
+            flash('Todos los campos son obligatorios.', 'danger')
+            return redirect(url_for('secretaria.ajustes'))
+
+        if evento:
+            query(
+                "UPDATE evento SET edicion=%s, fecha=%s, hora_inicio=%s, hora_fin=%s, "
+                "semestre=%s, anio=%s WHERE id_evento=%s",
+                (edicion, fecha, hora_inicio, hora_fin, semestre, anio, evento['id_evento']),
+                commit=True)
+        else:
+            query(
+                "INSERT INTO evento (edicion, fecha, hora_inicio, hora_fin, semestre, anio) "
+                "VALUES (%s,%s,%s,%s,%s,%s)",
+                (edicion, fecha, hora_inicio, hora_fin, semestre, anio), commit=True)
+
+        flash('Ajustes de ExpoEpics guardados correctamente.', 'success')
+        return redirect(url_for('secretaria.ajustes'))
+
+    return render_template('secretaria/ajustes.html', evento=evento)
+
+
+MESES_ES = ['enero','febrero','marzo','abril','mayo','junio',
+            'julio','agosto','septiembre','octubre','noviembre','diciembre']
+
+
+@secretaria_bp.route('/diplomas')
+@role_required('secretaria')
+def diplomas():
+    evento = _get_evento()
+    if not evento:
+        flash('No hay un evento activo.', 'warning')
+        return redirect(url_for('secretaria.dashboard'))
+
+    id_evento = evento['id_evento']
+    rows = query(
+        "SELECT c.id_curso, c.nombre AS nombre_curso, c.color, "
+        "       per.nombre, per.apellido, per.dni, "
+        "       es.id_estudiante, COALESCE(pa.certificado, 0) AS certificado "
+        "FROM participacion pa "
+        "JOIN estudiante es  ON pa.id_estudiante = es.id_estudiante "
+        "JOIN persona per    ON es.id_persona    = per.id_persona "
+        "JOIN inscripcion_curso ic ON ic.id_estudiante = es.id_estudiante "
+        "JOIN curso c            ON ic.id_curso = c.id_curso "
+        "WHERE pa.id_evento = %s AND pa.asistencia = 1 "
+        "  AND c.id_curso IN (SELECT DISTINCT id_curso FROM grupo WHERE id_evento = %s) "
+        "ORDER BY c.nombre, per.apellido, per.nombre",
+        (id_evento, id_evento))
+
+    cursos = {}
+    for r in rows:
+        cid = r['id_curso']
+        if cid not in cursos:
+            cursos[cid] = {
+                'id_curso':     cid,
+                'nombre_curso': r['nombre_curso'],
+                'color':        r['color'],
+                'estudiantes':  [],
+            }
+        cursos[cid]['estudiantes'].append({
+            'id_estudiante': r['id_estudiante'],
+            'dni':           r['dni'],
+            'nombre':        r['nombre'],
+            'apellido':      r['apellido'],
+            'certificado':   bool(r['certificado']),
+        })
+
+    return render_template('secretaria/diplomas.html',
+                           evento=evento,
+                           cursos=list(cursos.values()))
+
+
+@secretaria_bp.route('/diplomas/generar', methods=['POST'])
+@role_required('secretaria')
+def diplomas_generar():
+    id_estudiante = request.form.get('id_estudiante', type=int)
+    evento = _get_evento()
+    if not evento or not id_estudiante:
+        flash('Datos inválidos.', 'danger')
+        return redirect(url_for('secretaria.diplomas'))
+
+    query(
+        "UPDATE participacion SET certificado=1 "
+        "WHERE id_evento=%s AND id_estudiante=%s AND asistencia=1",
+        (evento['id_evento'], id_estudiante), commit=True)
+
+    return redirect(url_for('secretaria.diplomas_ver', id_estudiante=id_estudiante))
+
+
+@secretaria_bp.route('/diplomas/ver/<int:id_estudiante>')
+@role_required('secretaria')
+def diplomas_ver(id_estudiante):
+    evento = _get_evento()
+    if not evento:
+        return redirect(url_for('secretaria.diplomas'))
+
+    info = query(
+        "SELECT per.nombre, per.apellido, "
+        "       p.nombre AS nombre_proyecto, "
+        "       c.nombre AS nombre_curso "
+        "FROM participacion pa "
+        "JOIN estudiante es  ON pa.id_estudiante = es.id_estudiante "
+        "JOIN persona per    ON es.id_persona    = per.id_persona "
+        "LEFT JOIN estudiante_grupo eg ON eg.id_estudiante = es.id_estudiante "
+        "LEFT JOIN grupo g  ON eg.id_grupo = g.id_grupo AND g.id_evento = pa.id_evento "
+        "LEFT JOIN proyecto p  ON g.id_grupo = p.id_grupo "
+        "LEFT JOIN curso c     ON g.id_curso = c.id_curso "
+        "WHERE pa.id_estudiante=%s AND pa.id_evento=%s AND pa.asistencia=1 "
+        "LIMIT 1",
+        (id_estudiante, evento['id_evento']), fetch_one=True)
+
+    if not info:
+        flash('Estudiante no encontrado o no asistió.', 'danger')
+        return redirect(url_for('secretaria.diplomas'))
+
+    fecha_str = None
+    if evento.get('fecha'):
+        f = evento['fecha']
+        fecha_str = f"{f.day} de {MESES_ES[f.month - 1]} de {f.year}"
+
+    return render_template('secretaria/diploma_ver.html',
+                           info=info,
+                           evento=evento,
+                           fecha_str=fecha_str,
+                           id_estudiante=id_estudiante)
 
 
 @secretaria_bp.route('/cuenta', methods=['GET', 'POST'])

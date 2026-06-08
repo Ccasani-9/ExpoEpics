@@ -3,6 +3,7 @@
 /* ── Auto-dismiss alerts ── */
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.alert').forEach(el => {
+    if (el.style.display === 'none' || el.id) return;
     setTimeout(() => {
       el.style.transition = 'opacity .4s';
       el.style.opacity = '0';

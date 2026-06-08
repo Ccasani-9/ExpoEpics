@@ -119,7 +119,6 @@
         {% elif m.id_estudiante == session.role_id %}
           <span class="badge badge-gray" style="margin-left:4px;">Tú</span>
         {% endif %}
-        <div class="member-code">Código: {{ m.codigo }}</div>
       </div>
     </div>
     {% endfor %}
@@ -147,10 +146,6 @@
         <div class="form-group" style="margin-bottom:12px;">
           <label>Correo institucional</label>
           <input type="email" name="correo" placeholder="nombre@usmp.edu.pe" required>
-        </div>
-        <div class="form-group" style="margin-bottom:12px;">
-          <label>Código universitario</label>
-          <input type="text" name="codigo" placeholder="Ej: 2021015" required>
         </div>
         <div class="form-group" style="margin-bottom:12px;">
           <label>Ciclo</label>

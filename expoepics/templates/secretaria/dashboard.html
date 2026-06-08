@@ -318,7 +318,6 @@
       html += '<tr>'
         + '<td><span class="text-bold">' + e.nombre + ' ' + e.apellido + '</span></td>'
         + '<td class="text-muted">' + e.dni + '</td>'
-        + '<td>' + e.codigo + '</td>'
         + '<td>' + e.ciclo + '&deg; ciclo</td>'
         + '<td class="text-muted">' + e.correo + '</td>'
         + '</tr>';
@@ -428,7 +427,7 @@
       return '<div class="member-row">'
         + '<div class="' + avatarCls + '">' + initials.toUpperCase() + '</div>'
         + '<div><div class="member-name">' + m.nombre + ' ' + m.apellido + liderBadge + '</div>'
-        + '<div class="member-code">' + m.codigo + ' &middot; ' + m.ciclo + '&deg; ciclo &middot; ' + m.correo + '</div>'
+        + '<div class="member-code">' + m.ciclo + '&deg; ciclo &middot; ' + m.correo + '</div>'
         + '</div></div>';
     }).join('');
     var estadoBadge = g.estado_proyecto

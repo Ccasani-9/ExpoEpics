@@ -58,6 +58,120 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 -- ────────────────────────────────────────────────────────────
+-- MIGRACIÓN 3: Columna area_involucrada en tabla tarea
+-- Permite que la secretaria indique qué área es responsable
+-- de cada tarea (Marketing, Administración, Admisión, Logística
+-- u otro valor libre).
+-- ────────────────────────────────────────────────────────────
+SET @col_area = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = 'ExpoEpics'
+    AND TABLE_NAME   = 'tarea'
+    AND COLUMN_NAME  = 'area_involucrada'
+);
+SET @sql_area = IF(@col_area = 0,
+  'ALTER TABLE tarea ADD COLUMN area_involucrada VARCHAR(80) NULL AFTER titulo',
+  'SELECT "columna area_involucrada ya existe" AS info'
+);
+PREPARE stmt FROM @sql_area;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- ────────────────────────────────────────────────────────────
+-- MIGRACIÓN 4: Columna edicion en tabla evento
+-- Almacena el número de edición del evento (ej. 23.ª edición).
+-- Independiente del id_evento (PK autoincremental).
+-- ────────────────────────────────────────────────────────────
+SET @col_edicion = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = 'ExpoEpics'
+    AND TABLE_NAME   = 'evento'
+    AND COLUMN_NAME  = 'edicion'
+);
+SET @sql_edicion = IF(@col_edicion = 0,
+  'ALTER TABLE evento ADD COLUMN edicion SMALLINT NULL AFTER id_evento',
+  'SELECT "columna edicion ya existe" AS info'
+);
+PREPARE stmt FROM @sql_edicion;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- ────────────────────────────────────────────────────────────
+-- MIGRACIÓN 5: Renombrar evento.ciclo → evento.semestre
+-- Un año universitario tiene 2 semestres académicos, no ciclos.
+-- ────────────────────────────────────────────────────────────
+SET @col_ciclo = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = 'ExpoEpics'
+    AND TABLE_NAME   = 'evento'
+    AND COLUMN_NAME  = 'ciclo'
+);
+SET @sql_rename = IF(@col_ciclo > 0,
+  'ALTER TABLE evento RENAME COLUMN ciclo TO semestre',
+  'SELECT "columna semestre ya existe" AS info'
+);
+PREPARE stmt FROM @sql_rename;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- ────────────────────────────────────────────────────────────
+-- MIGRACIÓN 6: Eliminar id_secretaria de la tabla evento
+-- El evento puede ser configurado por cualquier organizador
+-- (docente o secretaria), no necesita estar atado a una secretaria específica.
+-- ────────────────────────────────────────────────────────────
+
+-- Primero eliminar la FK constraint si existe
+SET @fk_ev_sec = (
+  SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
+  WHERE TABLE_SCHEMA = 'ExpoEpics'
+    AND TABLE_NAME   = 'evento'
+    AND COLUMN_NAME  = 'id_secretaria'
+    AND REFERENCED_TABLE_NAME IS NOT NULL
+  LIMIT 1
+);
+SET @sql_fk = IF(@fk_ev_sec IS NOT NULL,
+  CONCAT('ALTER TABLE evento DROP FOREIGN KEY ', @fk_ev_sec),
+  'SELECT "FK ya eliminada" AS info'
+);
+PREPARE stmt FROM @sql_fk;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Luego eliminar la columna si existe
+SET @col_ev_sec = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = 'ExpoEpics'
+    AND TABLE_NAME   = 'evento'
+    AND COLUMN_NAME  = 'id_secretaria'
+);
+SET @sql_col = IF(@col_ev_sec > 0,
+  'ALTER TABLE evento DROP COLUMN id_secretaria',
+  'SELECT "columna ya eliminada" AS info'
+);
+PREPARE stmt FROM @sql_col;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- ────────────────────────────────────────────────────────────
+-- MIGRACIÓN 7: Eliminar columna codigo de tabla estudiante
+-- El código universitario no aporta valor: el seguimiento entre
+-- ediciones se hace con id_estudiante, y la identidad con el DNI.
+-- ────────────────────────────────────────────────────────────
+SET @col_cod = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = 'ExpoEpics'
+    AND TABLE_NAME   = 'estudiante'
+    AND COLUMN_NAME  = 'codigo'
+);
+SET @sql_cod = IF(@col_cod > 0,
+  'ALTER TABLE estudiante DROP COLUMN codigo',
+  'SELECT "columna codigo ya eliminada" AS info'
+);
+PREPARE stmt FROM @sql_cod;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- ────────────────────────────────────────────────────────────
 -- FIN DE MIGRACIONES
 -- ────────────────────────────────────────────────────────────
 -- Para futuras modificaciones al schema, agregar aquí un nuevo

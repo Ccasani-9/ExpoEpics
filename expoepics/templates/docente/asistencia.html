@@ -1,0 +1,266 @@
+{% extends 'base.html' %}
+{% block title %}Asistencia{% endblock %}
+{% block page_title %}Asistencia al Evento{% endblock %}
+
+{% block content %}
+
+{% if not cursos %}
+  <div class="alert alert-info">No hay estudiantes inscritos en tus cursos para el evento activo.</div>
+{% else %}
+
+<!-- ══ VISTA 1: SELECCIÓN DE CURSO ══ -->
+<div id="vista-cursos">
+  <div style="margin-bottom:24px;">
+    <div class="section-title">Selecciona un curso</div>
+    {% if evento %}
+      <div style="color:var(--text-secondary); font-size:0.875rem; margin-top:4px;">
+        Evento: <strong>{{ evento.fecha.strftime('%d/%m/%Y') }}</strong> —
+        {{ evento.hora_inicio }} a {{ evento.hora_fin }}
+      </div>
+    {% endif %}
+  </div>
+
+  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:20px;">
+    {% for curso in cursos %}
+    {% set total = curso.estudiantes | length %}
+    {% set asistieron = curso.estudiantes | selectattr('asistencia') | list | length %}
+    <div class="curso-card" onclick="verCurso('{{ curso.id_curso }}')"
+         style="cursor:pointer; border:2px solid var(--border); border-radius:14px;
+                background:var(--card); padding:24px; transition:box-shadow .2s, border-color .2s;
+                display:flex; flex-direction:column; gap:14px;">
+      <div style="width:48px; height:48px; border-radius:12px;
+                  background:{{ curso.color }}22; display:flex;
+                  align-items:center; justify-content:center;">
+        <div style="width:20px; height:20px; border-radius:50%; background:{{ curso.color }};"></div>
+      </div>
+      <div>
+        <div style="font-weight:700; font-size:1rem; margin-bottom:4px;">{{ curso.nombre_curso }}</div>
+        <div style="font-size:0.8rem; color:var(--text-secondary);">
+          {{ total }} estudiante{{ 's' if total != 1 else '' }} inscrito{{ 's' if total != 1 else '' }}
+        </div>
+        {% if asistieron > 0 %}
+          <div style="font-size:0.8rem; color:var(--success); margin-top:2px;">
+            {{ asistieron }} de {{ total }} marcado{{ 's' if asistieron != 1 else '' }}
+          </div>
+        {% endif %}
+      </div>
+      <div style="height:4px; background:var(--border); border-radius:4px; overflow:hidden;">
+        <div style="height:100%; width:{{ ((asistieron / total) * 100) | round(0) | int if total else 0 }}%;
+                    background:{{ curso.color }}; border-radius:4px;"></div>
+      </div>
+      <div style="font-size:0.85rem; font-weight:600; color:{{ curso.color }};">
+        Registrar asistencia →
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+
+<!-- ══ VISTA 2: ESTUDIANTES DEL CURSO ══ -->
+<div id="vista-estudiantes" style="display:none;">
+
+  <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
+    <button class="btn btn-outline btn-sm" onclick="volverCursos()">
+      <i class="ti ti-arrow-left"></i> Volver a cursos
+    </button>
+    <div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div id="curso-color-dot" style="width:12px; height:12px; border-radius:50%;"></div>
+        <span id="curso-nombre" style="font-weight:700; font-size:1.1rem;"></span>
+      </div>
+      {% if evento %}
+        <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">
+          {{ evento.fecha.strftime('%d/%m/%Y') }} — {{ evento.hora_inicio }} a {{ evento.hora_fin }}
+        </div>
+      {% endif %}
+    </div>
+    <div style="margin-left:auto; display:flex; gap:12px; flex-wrap:wrap;">
+      <span style="font-size:0.85rem;">Total: <strong id="cnt-total">0</strong></span>
+      <span style="font-size:0.85rem; color:var(--success);">Asistieron: <strong id="cnt-asistieron">0</strong></span>
+      <span style="font-size:0.85rem; color:var(--danger);">No asistieron: <strong id="cnt-no">0</strong></span>
+    </div>
+  </div>
+
+  <div id="lista-estudiantes"></div>
+  <div id="paginacion" style="display:flex; align-items:center; justify-content:center;
+       gap:8px; margin-top:20px; flex-wrap:wrap;"></div>
+</div>
+
+{% endif %}
+
+<script id="asistencia-data" type="application/json">{{ cursos | tojson }}</script>
+
+<style>
+.curso-card:hover { box-shadow:0 4px 20px rgba(0,0,0,.10); border-color:#cbd5e1 !important; }
+.asistencia-row   { transition:border-color .2s; }
+.asistencia-row.guardado { border-color:var(--success) !important; }
+.pag-btn {
+  min-width:36px; height:36px; border-radius:8px; border:1px solid var(--border);
+  background:var(--card); color:var(--text); font-size:0.85rem; font-weight:600;
+  cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+  padding:0 10px; transition:background .15s, border-color .15s;
+}
+.pag-btn:hover  { background:var(--bg-secondary); }
+.pag-btn.active { background:var(--blue,#2563eb); color:#fff; border-color:var(--blue,#2563eb); }
+.pag-btn:disabled { opacity:.4; cursor:not-allowed; }
+</style>
+
+<script>
+var CURSOS_DATA    = JSON.parse(document.getElementById('asistencia-data').textContent);
+var canvasState    = {};
+var currentCurso   = null;
+var currentPage    = 1;
+var ITEMS_PER_PAGE = 10;
+
+function verCurso(idCurso) {
+  idCurso = parseInt(idCurso);
+  var curso = CURSOS_DATA.find(function(c){ return c.id_curso === idCurso; });
+  if (!curso) return;
+  currentCurso = curso; currentPage = 1;
+  document.getElementById('curso-nombre').textContent         = curso.nombre_curso;
+  document.getElementById('curso-color-dot').style.background = curso.color;
+  actualizarContadores(curso);
+  renderPagina(curso, 1);
+  document.getElementById('vista-cursos').style.display      = 'none';
+  document.getElementById('vista-estudiantes').style.display = '';
+}
+
+function volverCursos() {
+  document.getElementById('vista-estudiantes').style.display = 'none';
+  document.getElementById('vista-cursos').style.display      = '';
+  canvasState = {}; currentCurso = null;
+}
+
+function actualizarContadores(curso) {
+  var total = curso.estudiantes.length;
+  var asi   = curso.estudiantes.filter(function(e){ return e.asistencia; }).length;
+  document.getElementById('cnt-total').textContent      = total;
+  document.getElementById('cnt-asistieron').textContent = asi;
+  document.getElementById('cnt-no').textContent         = total - asi;
+}
+
+function renderPagina(curso, page) {
+  currentPage = page;
+  var total      = curso.estudiantes.length;
+  var totalPages = Math.ceil(total / ITEMS_PER_PAGE) || 1;
+  var start      = (page - 1) * ITEMS_PER_PAGE;
+  var slice      = curso.estudiantes.slice(start, start + ITEMS_PER_PAGE);
+  renderEstudiantes(slice);
+  renderControlesPaginacion(totalPages, page, curso);
+}
+
+function renderControlesPaginacion(totalPages, page, curso) {
+  var pag = document.getElementById('paginacion');
+  pag.innerHTML = '';
+  if (totalPages <= 1) return;
+  function mkBtn(label, targetPage, disabled, active) {
+    var btn = document.createElement('button');
+    btn.className = 'pag-btn' + (active ? ' active' : '');
+    btn.innerHTML = label; btn.disabled = disabled;
+    if (!disabled) btn.onclick = function(){ renderPagina(curso, targetPage); window.scrollTo(0,0); };
+    return btn;
+  }
+  pag.appendChild(mkBtn('<i class="ti ti-chevron-left"></i>', page - 1, page === 1, false));
+  for (var i = 1; i <= totalPages; i++) {
+    if (totalPages > 7 && i > 2 && i < totalPages - 1 && Math.abs(i - page) > 1) {
+      if (i === 3 || i === totalPages - 2) { var d = document.createElement('span'); d.textContent = '…'; d.style.cssText = 'padding:0 4px;color:var(--text-secondary);line-height:36px;'; pag.appendChild(d); }
+      continue;
+    }
+    pag.appendChild(mkBtn(i, i, false, i === page));
+  }
+  pag.appendChild(mkBtn('<i class="ti ti-chevron-right"></i>', page + 1, page === totalPages, false));
+  var info = document.createElement('span');
+  info.style.cssText = 'font-size:.8rem;color:var(--text-secondary);margin-left:4px;';
+  info.textContent = ((page-1)*ITEMS_PER_PAGE+1) + '–' + Math.min(page*ITEMS_PER_PAGE, curso.estudiantes.length) + ' de ' + curso.estudiantes.length;
+  pag.appendChild(info);
+}
+
+function renderEstudiantes(slice) {
+  var lista = document.getElementById('lista-estudiantes');
+  lista.innerHTML = '';
+  if (!slice.length) { lista.innerHTML = '<div class="alert alert-info">No hay estudiantes en esta página.</div>'; return; }
+  slice.forEach(function(est) {
+    var row = document.createElement('div');
+    row.className = 'asistencia-row'; row.id = 'row-' + est.id_estudiante;
+    row.style.cssText = 'border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;';
+    var trackBg = est.asistencia ? 'var(--success)' : 'var(--border)';
+    var thumbL  = est.asistencia ? '23px' : '3px';
+    var checked = est.asistencia ? 'checked' : '';
+    var fgHTML  = '';
+    if (est.firma) {
+      fgHTML = '<div id="firmaguardada-' + est.id_estudiante + '"><img src="' + est.firma + '" alt="Firma" style="border:1px solid var(--border);border-radius:6px;max-width:320px;height:100px;object-fit:contain;background:#fff;"><div style="margin-top:6px;"><button class="btn btn-outline btn-sm" onclick="editarFirma(' + est.id_estudiante + ')"><i class="ti ti-pencil"></i> Editar firma</button></div></div>';
+    }
+    var fzD = est.asistencia ? '' : 'display:none;';
+    var gsD = est.asistencia ? 'display:none;' : '';
+    var cvD = est.firma ? 'display:none;' : '';
+    row.innerHTML =
+      '<div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;">' +
+        '<div style="flex:1;min-width:220px;"><div style="font-weight:600;">' + esc(est.apellido) + ', ' + esc(est.nombre) + '</div><div style="font-size:.8rem;color:var(--text-secondary);margin-top:2px;">DNI: ' + esc(est.dni) + ' &nbsp;·&nbsp; ' + esc(est.correo) + '</div></div>' +
+        '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;margin-top:2px;"><span style="font-size:.85rem;color:var(--text-secondary);">Asistió</span><div style="position:relative;"><input type="checkbox" class="asistencia-check" data-id="' + est.id_estudiante + '" data-evento="{{ evento.id_evento }}" ' + checked + ' style="opacity:0;position:absolute;width:0;height:0;"><div class="toggle-track" style="width:44px;height:24px;border-radius:12px;background:' + trackBg + ';transition:.2s;"><div class="toggle-thumb" style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:' + thumbL + ';transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3);"></div></div></div></label>' +
+      '</div>' +
+      '<div class="firma-zona" id="firma-' + est.id_estudiante + '" style="margin-top:12px;' + fzD + '"><div style="font-size:.8rem;color:var(--text-secondary);margin-bottom:6px;">Firma del estudiante</div>' + fgHTML + '<div class="firma-canvas-wrap" id="firmacanvas-' + est.id_estudiante + '" style="' + cvD + '"><canvas id="canvas-' + est.id_estudiante + '" width="320" height="100" style="border:1px solid var(--border);border-radius:6px;background:#fff;cursor:crosshair;touch-action:none;"></canvas><div style="display:flex;gap:8px;margin-top:8px;"><button class="btn btn-outline btn-sm" onclick="limpiarFirma(' + est.id_estudiante + ')"><i class="ti ti-eraser"></i> Limpiar</button><button class="btn btn-primary btn-sm" onclick="guardarAsistencia(' + est.id_estudiante + ',{{ evento.id_evento }})"><i class="ti ti-device-floppy"></i> Guardar</button></div></div></div>' +
+      '<div id="guardarsolo-' + est.id_estudiante + '" style="margin-top:10px;' + gsD + '"><button class="btn btn-primary btn-sm" onclick="guardarAsistencia(' + est.id_estudiante + ',{{ evento.id_evento }})"><i class="ti ti-device-floppy"></i> Guardar</button></div>' +
+      '<div id="feedback-' + est.id_estudiante + '" style="font-size:.8rem;margin-top:6px;display:none;"></div>';
+    lista.appendChild(row);
+    if (est.asistencia) initCanvas(est.id_estudiante);
+  });
+  bindToggles();
+}
+
+function bindToggles() {
+  document.querySelectorAll('.asistencia-check').forEach(function(chk) {
+    chk.addEventListener('change', function() {
+      var id = this.dataset.id, checked = this.checked;
+      var track = this.nextElementSibling, thumb = track.querySelector('.toggle-thumb');
+      track.style.background = checked ? 'var(--success)' : 'var(--border)';
+      thumb.style.left       = checked ? '23px' : '3px';
+      document.getElementById('firma-'       + id).style.display = checked ? '' : 'none';
+      document.getElementById('guardarsolo-' + id).style.display = checked ? 'none' : '';
+      if (checked) initCanvas(id);
+      if (currentCurso) {
+        var est = currentCurso.estudiantes.find(function(e){ return String(e.id_estudiante) === String(id); });
+        if (est) est.asistencia = checked;
+        actualizarContadores(currentCurso);
+      }
+    });
+  });
+}
+
+function initCanvas(id) {
+  if (canvasState[id]) return;
+  var canvas = document.getElementById('canvas-' + id); if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  canvasState[id] = { drawing: false };
+  function pos(e) { var r = canvas.getBoundingClientRect(), s = e.touches ? e.touches[0] : e; return { x: s.clientX-r.left, y: s.clientY-r.top }; }
+  function start(e) { e.preventDefault(); var p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); canvasState[id].drawing=true; }
+  function move(e)  { e.preventDefault(); if (!canvasState[id].drawing) return; var p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); }
+  function stop()   { canvasState[id].drawing=false; }
+  canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',move);
+  canvas.addEventListener('mouseup',stop);    canvas.addEventListener('mouseleave',stop);
+  canvas.addEventListener('touchstart',start,{passive:false}); canvas.addEventListener('touchmove',move,{passive:false}); canvas.addEventListener('touchend',stop);
+}
+
+function limpiarFirma(id) { var c=document.getElementById('canvas-'+id); if(c) c.getContext('2d').clearRect(0,0,c.width,c.height); }
+function editarFirma(id)  { document.getElementById('firmaguardada-'+id).style.display='none'; document.getElementById('firmacanvas-'+id).style.display=''; delete canvasState[id]; initCanvas(id); }
+
+function guardarAsistencia(id, idEvento) {
+  var check=document.querySelector('.asistencia-check[data-id="'+id+'"]'), asistio=check?check.checked:false, firma=null;
+  if (asistio) { var w=document.getElementById('firmacanvas-'+id); if(w&&w.style.display!=='none'){var c=document.getElementById('canvas-'+id);if(c)firma=c.toDataURL('image/png');} }
+  fetch('{{ url_for("docente.asistencia_guardar") }}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id_estudiante:id,id_evento:idEvento,asistio:asistio,firma:firma})})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var fb=document.getElementById('feedback-'+id), row=document.getElementById('row-'+id);
+    if(data.ok){
+      fb.style.color='var(--success)'; fb.textContent='Guardado.'; fb.style.display='';
+      row.classList.add('guardado'); setTimeout(function(){fb.style.display='none';row.classList.remove('guardado');},2500);
+      if(firma){var gd=document.getElementById('firmaguardada-'+id);if(!gd){gd=document.createElement('div');gd.id='firmaguardada-'+id;document.getElementById('firmacanvas-'+id).before(gd);}gd.innerHTML='<img src="'+firma+'" alt="Firma" style="border:1px solid var(--border);border-radius:6px;max-width:320px;height:100px;object-fit:contain;background:#fff;"><div style="margin-top:6px;"><button class="btn btn-outline btn-sm" onclick="editarFirma('+id+')"><i class="ti ti-pencil"></i> Editar firma</button></div>';gd.style.display='';document.getElementById('firmacanvas-'+id).style.display='none';}
+    } else { fb.style.color='var(--danger)'; fb.textContent='Error al guardar.'; fb.style.display=''; }
+  })
+  .catch(function(){var fb=document.getElementById('feedback-'+id);fb.style.color='var(--danger)';fb.textContent='Error de conexión.';fb.style.display='';});
+}
+
+function esc(str){return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+</script>
+{% endblock %}

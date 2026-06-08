@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diploma — {{ info.apellido }}, {{ info.nombre }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #e8e8e8; font-family: 'DM Sans', sans-serif; }
+
+    .actions {
+      display: flex; gap: 10px; justify-content: center;
+      padding: 20px; background: #e8e8e8;
+    }
+    .actions a, .actions button {
+      padding: 9px 20px; border-radius: 8px; font-size: 14px;
+      font-weight: 600; cursor: pointer; text-decoration: none;
+      border: none; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-back  { background: #fff; color: #374151; border: 1.5px solid #d1d5db; }
+    .btn-print { background: #1d4ed8; color: #fff; }
+
+    /* ─── DIPLOMA WRAPPER ─── */
+    .diploma-wrapper {
+      width: 794px; height: 562px;
+      margin: 0 auto 32px;
+      background: #fff;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,.18);
+    }
+
+    /* ─── LEFT RED SHAPE ─── */
+    .diploma-left {
+      position: absolute; left: 0; top: 0; bottom: 0; width: 190px;
+    }
+    .diploma-left svg { width: 100%; height: 100%; display: block; }
+
+    /* ─── CONTENT AREA ─── */
+    .diploma-content {
+      position: absolute;
+      left: 205px; right: 32px; top: 0; bottom: 0;
+      display: flex; flex-direction: column;
+      padding: 28px 0 20px;
+    }
+
+    /* ─── HEADER ─── */
+    .diploma-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #c8102e;
+      margin-bottom: 22px;
+    }
+    .usmp-block { display: flex; align-items: center; gap: 10px; }
+    .usmp-crest {
+      width: 48px; height: 48px; background: #c8102e; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 800; font-size: 13px; letter-spacing: .03em;
+    }
+    .usmp-text { font-size: 10px; line-height: 1.5; color: #374151; }
+    .usmp-text strong { font-size: 13px; font-weight: 700; color: #111; display: block; }
+    .usmp-text span { font-size: 9.5px; color: #6b7280; }
+
+    .expo-block { text-align: right; }
+    .expo-block .expo-tag {
+      display: inline-block; background: #c8102e;
+      color: #fff; font-size: 10px; font-weight: 800;
+      padding: 2px 5px; letter-spacing: .1em; vertical-align: middle;
+    }
+    .expo-block .epics-tag {
+      font-size: 24px; font-weight: 900; color: #111;
+      letter-spacing: -.02em; vertical-align: middle;
+    }
+    .expo-block .expo-sub {
+      display: block; font-size: 9px; color: #6b7280; margin-top: 2px;
+    }
+
+    /* ─── BODY ─── */
+    .diploma-body { flex: 1; }
+    .otorga-text {
+      font-size: 12px; color: #6b7280; margin-bottom: 6px;
+      font-family: 'Crimson Text', Georgia, serif; font-style: italic;
+    }
+    .student-name {
+      font-size: 22px; font-weight: 800; color: #111;
+      text-transform: uppercase; letter-spacing: .03em;
+      margin-bottom: 14px; line-height: 1.2;
+    }
+    .diploma-par {
+      font-size: 12px; color: #374151; line-height: 1.7;
+      font-family: 'Crimson Text', Georgia, serif;
+    }
+    .diploma-par strong { font-weight: 700; color: #111; }
+    .project-name {
+      font-size: 13px; font-weight: 700; color: #111;
+      text-transform: uppercase; margin: 8px 0 6px;
+    }
+    .diploma-date {
+      font-size: 12px; color: #374151; margin-top: 8px;
+      font-family: 'Crimson Text', Georgia, serif;
+    }
+
+    /* ─── FOOTER / FIRMA ─── */
+    .diploma-footer {
+      display: flex; justify-content: flex-end;
+      align-items: flex-end; padding-top: 10px;
+      border-top: 1px solid #e5e7eb;
+    }
+    .firma-block { text-align: center; min-width: 180px; }
+    .firma-line {
+      width: 160px; height: 1px; background: #374151;
+      margin: 0 auto 4px;
+    }
+    .firma-nombre { font-size: 12px; font-weight: 700; color: #111; }
+    .firma-cargo  { font-size: 10px; color: #6b7280; line-height: 1.5; margin-top: 2px; }
+
+    /* ─── PRINT ─── */
+    @media print {
+      body { background: #fff; }
+      .actions { display: none; }
+      .diploma-wrapper { box-shadow: none; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="actions">
+  <a href="javascript:history.back()" class="btn-back">&#8592; Volver</a>
+  <button onclick="window.print()" class="btn-print">&#128438; Imprimir / Guardar PDF</button>
+</div>
+
+<div class="diploma-wrapper">
+
+  <!-- FORMA ROJA IZQUIERDA -->
+  <div class="diploma-left">
+    <svg viewBox="0 0 190 562" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Fondo rojo completo -->
+      <rect width="190" height="562" fill="#c8102e"/>
+      <!-- Recorte triangular superior (apunta derecha) -->
+      <polygon points="190,155 190,305 90,230" fill="white"/>
+      <!-- Recorte triangular inferior (apunta derecha) -->
+      <polygon points="190,325 190,475 90,400" fill="white"/>
+    </svg>
+  </div>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <div class="diploma-content">
+
+    <!-- ENCABEZADO -->
+    <div class="diploma-header">
+      <div class="usmp-block">
+        <div class="usmp-crest">USMP</div>
+        <div class="usmp-text">
+          <strong>USMP</strong>
+          Universidad de San Martín de Porres<br>
+          <span>Facultad de Ingeniería y Arquitectura</span>
+        </div>
+      </div>
+      <div class="expo-block">
+        <span class="expo-tag">EXPO</span><span class="epics-tag">EPICS</span>
+        <span class="expo-sub">Escuela Prof. de Ing. de Computación y Sistemas</span>
+      </div>
+    </div>
+
+    <!-- CUERPO -->
+    <div class="diploma-body">
+      <div class="otorga-text">Se otorga el presente certificado a:</div>
+      <div class="student-name">{{ info.apellido }}, {{ info.nombre }}</div>
+
+      <div class="diploma-par">
+        Por su participación en la Exposición de Proyectos de la Escuela Profesional de<br>
+        Ingeniería de Computación y Sistemas
+        <strong>
+          "EXPO EPICS
+          {% if evento.anio %}{{ evento.anio }}{% endif %}
+          {% if evento.semestre == 1 %}-I{% elif evento.semestre == 2 %}-II{% endif %}"
+        </strong>{% if info.nombre_curso %},
+        con el proyecto para la asignatura de
+        <strong>{{ info.nombre_curso | upper }}</strong>:{% endif %}
+      </div>
+
+      {% if info.nombre_proyecto %}
+      <div class="project-name">{{ info.nombre_proyecto }}</div>
+      {% endif %}
+
+      <div class="diploma-date">
+        Actividad realizada en las instalaciones de la Facultad,
+        el {{ fecha_str or evento.fecha.strftime('%d/%m/%Y') }}.
+      </div>
+    </div>
+
+    <!-- PIE / FIRMA -->
+    <div class="diploma-footer">
+      <div class="firma-block">
+        <div class="firma-line"></div>
+        <div class="firma-nombre">Ing. Rubén García Farje</div>
+        <div class="firma-cargo">
+          Director de la Escuela Profesional<br>
+          de Ingeniería de Computación y Sistemas
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /diploma-content -->
+</div><!-- /diploma-wrapper -->
+
+</body>
+</html>

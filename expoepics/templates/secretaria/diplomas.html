@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}Diplomas de Participación{% endblock %}
+{% block page_title %}Diplomas de Participación{% endblock %}
+
+{% block content %}
+<script id="diplomas-data" type="application/json">{{ cursos | tojson }}</script>
+
+<!-- VISTA 1: TARJETAS DE CURSOS -->
+<div id="vista-cursos">
+  <p style="color:var(--text-secondary); margin-bottom:20px; font-size:14px;">
+    Selecciona un curso para ver los estudiantes que asistieron y gestionar sus diplomas.
+  </p>
+  <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px;" id="cursos-grid"></div>
+  <div id="sin-asistentes" style="display:none;">
+    <div class="alert alert-info"><i class="ti ti-info-circle"></i> No hay estudiantes con asistencia registrada aún.</div>
+  </div>
+</div>
+
+<!-- VISTA 2: ESTUDIANTES DEL CURSO -->
+<div id="vista-estudiantes" style="display:none;">
+  <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+    <button onclick="volverCursos()" class="btn btn-outline btn-sm">
+      <i class="ti ti-arrow-left"></i> Volver a cursos
+    </button>
+    <div>
+      <div id="curso-titulo" style="font-size:18px; font-weight:700;"></div>
+      <div id="curso-sub" style="font-size:13px; color:var(--text-secondary);"></div>
+    </div>
+  </div>
+  <div id="estudiantes-lista"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var CURSOS = JSON.parse(document.getElementById('diplomas-data').textContent);
+var cursoActual = null;
+
+function renderCursos() {
+  var grid = document.getElementById('cursos-grid');
+  grid.innerHTML = '';
+  if (!CURSOS.length) {
+    document.getElementById('sin-asistentes').style.display = '';
+    return;
+  }
+  CURSOS.forEach(function(c) {
+    var total = c.estudiantes.length;
+    var conDiploma = c.estudiantes.filter(function(e){ return e.certificado; }).length;
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.style.cssText = 'cursor:pointer; border-top:4px solid ' + c.color + '; transition:box-shadow .15s;';
+    card.onmouseenter = function(){ this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)'; };
+    card.onmouseleave = function(){ this.style.boxShadow=''; };
+    card.onclick = function(){ seleccionarCurso(c); };
+    card.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
+        '<div style="width:36px;height:36px;border-radius:8px;background:' + c.color + ';display:flex;align-items:center;justify-content:center;">' +
+          '<i class="ti ti-certificate" style="color:#fff;font-size:18px;"></i>' +
+        '</div>' +
+        '<div style="font-weight:600;font-size:14px;flex:1;">' + c.nombre_curso + '</div>' +
+      '</div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary);">' +
+        '<span><i class="ti ti-users"></i> ' + total + ' asistentes</span>' +
+        '<span style="color:' + (conDiploma===total?'var(--success)':'var(--text-secondary)') + ';">' +
+          '<i class="ti ti-check"></i> ' + conDiploma + '/' + total + ' diplomas</span>' +
+      '</div>';
+    grid.appendChild(card);
+  });
+}
+
+function seleccionarCurso(c) {
+  cursoActual = c;
+  document.getElementById('vista-cursos').style.display = 'none';
+  document.getElementById('vista-estudiantes').style.display = '';
+  document.getElementById('curso-titulo').textContent = c.nombre_curso;
+  var conDiploma = c.estudiantes.filter(function(e){ return e.certificado; }).length;
+  document.getElementById('curso-sub').textContent =
+    c.estudiantes.length + ' asistentes · ' + conDiploma + ' diplomas generados';
+  renderEstudiantes(c);
+}
+
+function renderEstudiantes(c) {
+  var lista = document.getElementById('estudiantes-lista');
+  lista.innerHTML = '';
+  if (!c.estudiantes.length) {
+    lista.innerHTML = '<div class="alert alert-info">No hay asistentes en este curso.</div>';
+    return;
+  }
+  var tabla = document.createElement('div');
+  tabla.className = 'card';
+  tabla.style.padding = '0';
+  var html = '<table style="width:100%;border-collapse:collapse;">' +
+    '<thead><tr style="background:var(--bg-secondary);font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);">' +
+    '<th style="padding:12px 16px;text-align:left;">Estudiante</th>' +
+    '<th style="padding:12px 16px;text-align:left;">DNI</th>' +
+    '<th style="padding:12px 16px;text-align:center;">Estado</th>' +
+    '<th style="padding:12px 16px;text-align:center;">Acción</th>' +
+    '</tr></thead><tbody>';
+
+  c.estudiantes.forEach(function(e, i) {
+    var bg = i % 2 === 0 ? '' : 'background:var(--bg-secondary);';
+    var estadoBadge = e.certificado
+      ? '<span class="badge badge-green"><i class="ti ti-check"></i> Generado</span>'
+      : '<span class="badge badge-gray">Pendiente</span>';
+    var accionBtn = e.certificado
+      ? '<a href="/secretaria/diplomas/ver/' + e.id_estudiante + '" class="btn btn-outline btn-sm" target="_blank">' +
+          '<i class="ti ti-eye"></i> Ver</a>'
+      : '<form method="POST" action="/secretaria/diplomas/generar" style="display:inline;">' +
+          '<input type="hidden" name="id_estudiante" value="' + e.id_estudiante + '">' +
+          '<button type="submit" class="btn btn-primary btn-sm">' +
+            '<i class="ti ti-certificate"></i> Generar</button></form>';
+
+    html += '<tr style="' + bg + '">' +
+      '<td style="padding:12px 16px;font-weight:500;">' + e.apellido + ', ' + e.nombre + '</td>' +
+      '<td style="padding:12px 16px;color:var(--text-secondary);">' + e.dni + '</td>' +
+      '<td style="padding:12px 16px;text-align:center;">' + estadoBadge + '</td>' +
+      '<td style="padding:12px 16px;text-align:center;">' + accionBtn + '</td>' +
+      '</tr>';
+  });
+  html += '</tbody></table>';
+  tabla.innerHTML = html;
+  lista.appendChild(tabla);
+}
+
+function volverCursos() {
+  document.getElementById('vista-estudiantes').style.display = 'none';
+  document.getElementById('vista-cursos').style.display = '';
+}
+
+renderCursos();
+</script>
+{% endblock %}

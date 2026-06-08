@@ -1,12 +1,17 @@
 from flask import Flask, redirect, url_for, session
 from config import Config
-from database import close_db
+from database import close_db, query
 
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     app.teardown_appcontext(close_db)
+
+    @app.context_processor
+    def inject_evento_activo():
+        evt = query("SELECT * FROM evento ORDER BY fecha DESC LIMIT 1", fetch_one=True)
+        return {'g_evento': evt}
 
     from routes.auth_routes           import auth_bp
     from routes.docente_routes        import docente_bp
@@ -25,7 +30,7 @@ def create_app():
     app.register_blueprint(admin_bp)
 
     @app.route('/')
-    def index():
+    def index():1
         if 'id_persona' not in session:
             return redirect(url_for('auth.login'))
         _map = {

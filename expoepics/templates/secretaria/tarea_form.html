@@ -31,6 +31,20 @@
       </div>
 
       <div class="form-group">
+        <label for="area_involucrada">Área involucrada</label>
+        <input type="text" id="area_involucrada" name="area_involucrada"
+               list="areas-list" placeholder="Ej: Marketing, Admisión..."
+               value="{{ request.form.area_involucrada or '' }}" maxlength="80"
+               autocomplete="off">
+        <datalist id="areas-list">
+          <option value="Marketing">
+          <option value="Administración">
+          <option value="Admisión">
+          <option value="Logística">
+        </datalist>
+      </div>
+
+      <div class="form-group">
         <label for="descripcion">Descripción</label>
         <textarea id="descripcion" name="descripcion"
                   placeholder="Detalla qué hay que hacer...">{{ request.form.descripcion or '' }}</textarea>

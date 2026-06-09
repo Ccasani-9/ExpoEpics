@@ -6,4 +6,4 @@ class Config:
     DB_USER     = os.environ.get('DB_USER',     'root')
     DB_PASSWORD = os.environ.get('DB_PASSWORD', 'FiaTdbd20261@')
     DB_NAME     = os.environ.get('DB_NAME',     'ExpoEpics')
-    DB_PORT     = int(os.environ.get('DB_PORT', 3306))
+    DB_PORT     = int(os.environ.get('DB_PORT') or 3306)

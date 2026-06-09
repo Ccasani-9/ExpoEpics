@@ -170,6 +170,7 @@
 
 <div class="actions">
   <a href="{{ url_for('secretaria.diplomas') }}" class="btn-back">&#8592; Volver</a>
+  <a href="{{ url_for('secretaria.diplomas_descargar', id_estudiante=id_estudiante) }}" class="btn-print" style="background:#16a34a;">&#11123; Descargar Word</a>
   <button onclick="window.print()" class="btn-print">&#128438; Imprimir / Guardar PDF</button>
 </div>
 

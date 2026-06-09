@@ -1,7 +1,12 @@
 import json
+import os
+import base64
 import bcrypt
 from datetime import date
-from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify
+from io import BytesIO
+from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify, send_file
+from docx import Document
+from docx.shared import Inches
 from auth import role_required
 from database import query
 
@@ -564,6 +569,107 @@ def diplomas_ver(id_estudiante):
                            fecha_str=fecha_str,
                            id_estudiante=id_estudiante,
                            firma_director=firma_director)
+
+
+@secretaria_bp.route('/diplomas/descargar/<int:id_estudiante>')
+@role_required('secretaria')
+def diplomas_descargar(id_estudiante):
+    evento = _get_evento()
+    if not evento:
+        flash('No hay un evento activo.', 'warning')
+        return redirect(url_for('secretaria.diplomas'))
+
+    info = query(
+        "SELECT per.nombre, per.apellido, "
+        "       p.nombre AS nombre_proyecto, "
+        "       c.nombre AS nombre_curso "
+        "FROM participacion pa "
+        "JOIN estudiante es  ON pa.id_estudiante = es.id_estudiante "
+        "JOIN persona per    ON es.id_persona    = per.id_persona "
+        "LEFT JOIN estudiante_grupo eg ON eg.id_estudiante = es.id_estudiante "
+        "LEFT JOIN grupo g  ON eg.id_grupo = g.id_grupo AND g.id_evento = pa.id_evento "
+        "LEFT JOIN proyecto p  ON g.id_grupo = p.id_grupo "
+        "LEFT JOIN curso c     ON g.id_curso = c.id_curso "
+        "WHERE pa.id_estudiante=%s AND pa.id_evento=%s AND pa.asistencia=1 "
+        "LIMIT 1",
+        (id_estudiante, evento['id_evento']), fetch_one=True)
+
+    if not info:
+        flash('Estudiante no encontrado o no asistió.', 'danger')
+        return redirect(url_for('secretaria.diplomas'))
+
+    semestre_str = ''
+    if evento.get('anio'):
+        sufijo = 'I' if evento.get('semestre') == 1 else 'II'
+        semestre_str = f"{evento['anio']}-{sufijo}"
+
+    fecha_str = ''
+    if evento.get('fecha'):
+        f = evento['fecha']
+        fecha_str = f"{f.day} de {MESES_ES[f.month - 1]} de {f.year}"
+
+    reemplazos = {
+        'NOMBRE':        f"{info['apellido']}, {info['nombre']}".upper(),
+        'EXPO_SEMESTRE': semestre_str,
+        'CURSO':         (info['nombre_curso'] or '').upper(),
+        'PROYECTO':      (info['nombre_proyecto'] or '').upper(),
+        'FECHA':         fecha_str,
+    }
+
+    # Firma del director desde la BD
+    firma_buf = None
+    doc_firma = query(
+        "SELECT firma FROM docente_expoepics WHERE es_director=1 LIMIT 1",
+        fetch_one=True)
+    if doc_firma and doc_firma.get('firma'):
+        try:
+            img_data = base64.b64decode(doc_firma['firma'].split(',')[1])
+            firma_buf = BytesIO(img_data)
+        except Exception:
+            firma_buf = None
+
+    template_path = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), 'Diploma_ExpoEpics.docx')
+
+    if not os.path.exists(template_path):
+        flash('No se encontró la plantilla Diploma_ExpoEpics.docx.', 'danger')
+        return redirect(url_for('secretaria.diplomas_ver', id_estudiante=id_estudiante))
+
+    doc = Document(template_path)
+
+    def _reemplazar_parrafo(para):
+        for run in para.runs:
+            for k, v in reemplazos.items():
+                if f'{{{k}}}' in run.text:
+                    run.text = run.text.replace(f'{{{k}}}', v)
+            if '{FIRMA}' in run.text:
+                run.text = ''
+                if firma_buf:
+                    firma_buf.seek(0)
+                    run.add_picture(firma_buf, height=Inches(0.9))
+
+    for para in doc.paragraphs:
+        _reemplazar_parrafo(para)
+    for tabla in doc.tables:
+        for fila in tabla.rows:
+            for celda in fila.cells:
+                for para in celda.paragraphs:
+                    _reemplazar_parrafo(para)
+
+    buf = BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+
+    nombre_archivo = (
+        f"Diploma_{info['apellido']}_{info['nombre']}.docx"
+        .replace(' ', '_')
+    )
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=nombre_archivo,
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    )
 
 
 @secretaria_bp.route('/cuenta', methods=['GET', 'POST'])

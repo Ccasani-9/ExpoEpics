@@ -28,16 +28,16 @@
   <div class="card">
     <div class="card-title">📅 Datos del evento</div>
     <div class="event-date">
-      {{ evento.fecha.strftime('%d') }} {{ evento.fecha.strftime('%b').upper() }}
+      {{ evento.fecha.strftime('%d') }} {{ ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'][evento.fecha.month - 1] }}
     </div>
     <div class="event-detail" style="margin-top:10px;">
-      <strong>{{ evento.fecha.strftime('%A %d de %B de %Y') }}</strong>
+      <strong>{{ evento.fecha | fecha_es('%A %d de %B de %Y') }}</strong>
     </div>
     <hr class="divider">
     <div style="display:flex; flex-direction:column; gap:10px;">
       <div>
         <div class="detail-label">Horario</div>
-        <div class="detail-value">{{ evento.hora_inicio }} — {{ evento.hora_fin }}</div>
+        <div class="detail-value">{{ evento.hora_inicio | hora_fmt }} — {{ evento.hora_fin | hora_fmt }}</div>
       </div>
       <div>
         <div class="detail-label">Edición</div>

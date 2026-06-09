@@ -87,7 +87,7 @@ def evaluar(id_proyecto):
         aspectos_mejora = request.form.get('aspectos_mejora', '').strip()
         accion          = request.form.get('accion', 'borrador')
 
-        opciones_val = ('Excelente','Muy buena','Buena','Regular','Mala','Muy mala','Revisado')
+        opciones_val = ('Excelente','Muy buena','Buena','Regular','Mala','Revisado')
         if calificacion not in opciones_val:
             error = 'Debes seleccionar una calificación válida.'
         else:

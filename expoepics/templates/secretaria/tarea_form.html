@@ -15,7 +15,7 @@
     {% if evento %}
       <div class="alert alert-info" style="margin-bottom:16px;">
         Evento: <strong>{{ evento.fecha.strftime('%d/%m/%Y') }}</strong> —
-        {{ evento.hora_inicio }} a {{ evento.hora_fin }}
+        {{ evento.hora_inicio | hora_fmt }} a {{ evento.hora_fin | hora_fmt }}
       </div>
     {% endif %}
 

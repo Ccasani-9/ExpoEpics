@@ -172,6 +172,47 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 -- ────────────────────────────────────────────────────────────
+-- MIGRACIÓN 8: Columna es_director en tabla docente_expoepics
+-- Diferencia al director (Rubén García Farje) de los docentes
+-- regulares. Solo el director ve Asistencia y Ajustes ExpoEpics.
+-- ────────────────────────────────────────────────────────────
+SET @col_dir = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = 'ExpoEpics'
+    AND TABLE_NAME   = 'docente_expoepics'
+    AND COLUMN_NAME  = 'es_director'
+);
+SET @sql_dir = IF(@col_dir = 0,
+  'ALTER TABLE docente_expoepics ADD COLUMN es_director TINYINT(1) NOT NULL DEFAULT 0',
+  'SELECT "columna es_director ya existe" AS info'
+);
+PREPARE stmt FROM @sql_dir;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Marcar a Rubén García Farje como director (id_docente = 1)
+UPDATE docente_expoepics SET es_director = 1 WHERE id_docente = 1;
+
+-- ────────────────────────────────────────────────────────────
+-- MIGRACIÓN 9: Columna firma en docente_expoepics
+-- Almacena la firma del director como imagen base64 PNG.
+-- Se usa en los diplomas de participación.
+-- ────────────────────────────────────────────────────────────
+SET @col_firma = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = 'ExpoEpics'
+    AND TABLE_NAME   = 'docente_expoepics'
+    AND COLUMN_NAME  = 'firma'
+);
+SET @sql_firma = IF(@col_firma = 0,
+  'ALTER TABLE docente_expoepics ADD COLUMN firma LONGTEXT NULL',
+  'SELECT "columna firma ya existe" AS info'
+);
+PREPARE stmt FROM @sql_firma;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- ────────────────────────────────────────────────────────────
 -- FIN DE MIGRACIONES
 -- ────────────────────────────────────────────────────────────
 -- Para futuras modificaciones al schema, agregar aquí un nuevo

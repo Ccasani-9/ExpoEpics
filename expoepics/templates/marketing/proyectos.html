@@ -12,9 +12,6 @@
 {% block content %}
 <div class="section-header mb-16" style="margin-bottom:20px;">
   <div class="section-title">Detalle de proyectos y evaluaciones</div>
-  <a href="{{ url_for('marketing.exportar') }}" class="btn btn-primary btn-sm">
-    <i class="ti ti-download"></i> Exportar CSV
-  </a>
 </div>
 
 {% if not proyectos %}
@@ -29,7 +26,7 @@
           <div class="project-card-title">{{ p.nombre }}</div>
           {% if p.promedio is not none %}
             <span style="font-size:13px; font-weight:700; color:var(--blue);">
-              {{ "%.2f"|format(p.promedio) }}/6
+              {{ "%.2f"|format(p.promedio) }}/5
             </span>
           {% else %}
             <span class="text-muted text-sm">Sin calificación</span>

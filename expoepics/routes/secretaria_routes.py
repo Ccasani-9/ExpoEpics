@@ -378,8 +378,87 @@ def ajustes():
     return render_template('secretaria/ajustes.html', evento=evento)
 
 
+
 MESES_ES = ['enero','febrero','marzo','abril','mayo','junio',
             'julio','agosto','septiembre','octubre','noviembre','diciembre']
+
+
+@secretaria_bp.route('/complementos')
+@role_required('secretaria')
+def complementos():
+    evento = _get_evento()
+    if not evento:
+        flash('No hay un evento activo.', 'warning')
+        return redirect(url_for('secretaria.dashboard'))
+
+    id_evento = evento['id_evento']
+    rows = query(
+        "SELECT c.id_curso, c.nombre AS nombre_curso, c.color, "
+        "       per.nombre, per.apellido, per.dni, "
+        "       es.id_estudiante, "
+        "       COALESCE(pa.recibio_complemento, 0) AS recibio_complemento "
+        "FROM participacion pa "
+        "JOIN estudiante es        ON pa.id_estudiante  = es.id_estudiante "
+        "JOIN persona per          ON es.id_persona     = per.id_persona "
+        "JOIN inscripcion_curso ic ON ic.id_estudiante  = es.id_estudiante "
+        "JOIN curso c              ON ic.id_curso       = c.id_curso "
+        "WHERE pa.id_evento = %s AND pa.asistencia = 1 "
+        "  AND c.id_curso IN (SELECT DISTINCT id_curso FROM grupo WHERE id_evento = %s) "
+        "ORDER BY c.nombre, per.apellido, per.nombre",
+        (id_evento, id_evento))
+
+    cursos = {}
+    for r in rows:
+        cid = r['id_curso']
+        if cid not in cursos:
+            cursos[cid] = {
+                'id_curso':     cid,
+                'nombre_curso': r['nombre_curso'],
+                'color':        r['color'],
+                'estudiantes':  [],
+            }
+        cursos[cid]['estudiantes'].append({
+            'id_estudiante':      r['id_estudiante'],
+            'dni':                r['dni'],
+            'nombre':             r['nombre'],
+            'apellido':           r['apellido'],
+            'recibio_complemento': bool(r['recibio_complemento']),
+        })
+
+    return render_template('secretaria/complementos.html',
+                           evento=evento,
+                           cursos=list(cursos.values()))
+
+
+@secretaria_bp.route('/complementos/marcar', methods=['POST'])
+@role_required('secretaria')
+def complementos_marcar():
+    data          = request.get_json()
+    id_estudiante = data.get('id_estudiante')
+    id_evento     = data.get('id_evento')
+    valor         = int(bool(data.get('valor', 0)))
+
+    query(
+        "UPDATE participacion SET recibio_complemento=%s "
+        "WHERE id_evento=%s AND id_estudiante=%s",
+        (valor, id_evento, id_estudiante), commit=True)
+    return jsonify({'ok': True, 'valor': valor})
+
+
+@secretaria_bp.route('/complementos/marcar-todos', methods=['POST'])
+@role_required('secretaria')
+def complementos_marcar_todos():
+    data      = request.get_json()
+    id_curso  = data.get('id_curso')
+    id_evento = data.get('id_evento')
+
+    query(
+        "UPDATE participacion pa "
+        "JOIN inscripcion_curso ic ON ic.id_estudiante = pa.id_estudiante "
+        "SET pa.recibio_complemento = 1 "
+        "WHERE pa.id_evento = %s AND pa.asistencia = 1 AND ic.id_curso = %s",
+        (id_evento, id_curso), commit=True)
+    return jsonify({'ok': True})
 
 
 @secretaria_bp.route('/diplomas')
@@ -476,11 +555,15 @@ def diplomas_ver(id_estudiante):
         f = evento['fecha']
         fecha_str = f"{f.day} de {MESES_ES[f.month - 1]} de {f.year}"
 
+    doc = query("SELECT firma FROM docente_expoepics WHERE es_director=1 LIMIT 1", fetch_one=True)
+    firma_director = doc['firma'] if doc else None
+
     return render_template('secretaria/diploma_ver.html',
                            info=info,
                            evento=evento,
                            fecha_str=fecha_str,
-                           id_estudiante=id_estudiante)
+                           id_estudiante=id_estudiante,
+                           firma_director=firma_director)
 
 
 @secretaria_bp.route('/cuenta', methods=['GET', 'POST'])

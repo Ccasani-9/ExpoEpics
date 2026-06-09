@@ -67,7 +67,7 @@ def dashboard():
 
 
 @admin_bp.route('/mesas')
-@role_required('administrador')
+@role_required('administrador', 'secretaria')
 def mesas():
     evento = _get_evento()
     if not evento:
@@ -87,7 +87,7 @@ def mesas():
 
 
 @admin_bp.route('/mesas/crear', methods=['POST'])
-@role_required('administrador')
+@role_required('administrador', 'secretaria')
 def crear_mesa():
     evento = _get_evento()
     if not evento:
@@ -115,7 +115,7 @@ def crear_mesa():
 
 
 @admin_bp.route('/mesas/<int:id_espacio>/editar', methods=['POST'])
-@role_required('administrador')
+@role_required('administrador', 'secretaria')
 def editar_mesa(id_espacio):
     evento = _get_evento()
     if not evento:
@@ -150,7 +150,7 @@ def editar_mesa(id_espacio):
 
 
 @admin_bp.route('/mesas/<int:id_espacio>/eliminar', methods=['POST'])
-@role_required('administrador')
+@role_required('administrador', 'secretaria')
 def eliminar_mesa(id_espacio):
     evento = _get_evento()
     if not evento:

@@ -47,12 +47,12 @@
       <div>
         <div class="detail-label">Fecha del evento</div>
         <div class="detail-value" style="font-size:20px; font-weight:800; color:var(--blue);">
-          {{ evento.fecha.strftime('%d de %B de %Y') if evento.fecha else '' }}
+          {{ evento.fecha | fecha_es('%d de %B de %Y') if evento.fecha else '' }}
         </div>
       </div>
       <div>
         <div class="detail-label">Horario</div>
-        <div class="detail-value" style="font-size:15px; font-weight:600;">{{ evento.hora_inicio }} — {{ evento.hora_fin }}</div>
+        <div class="detail-value" style="font-size:15px; font-weight:600;">{{ evento.hora_inicio | hora_fmt }} — {{ evento.hora_fin | hora_fmt }}</div>
       </div>
       <div>
         <div class="detail-label">Semestre / Año</div>

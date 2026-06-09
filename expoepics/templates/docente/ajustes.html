@@ -61,13 +61,13 @@
         <div class="form-group">
           <label for="hora_inicio">Hora de inicio <span style="color:var(--danger);">*</span></label>
           <input type="time" id="hora_inicio" name="hora_inicio" required
-                 value="{{ evento.hora_inicio | string | truncate(5,True,'') if evento.hora_inicio else '' }}"
+                 value="{{ evento.hora_inicio | hora_fmt if evento.hora_inicio else '' }}"
                  style="width:100%;">
         </div>
         <div class="form-group">
           <label for="hora_fin">Hora de finalización <span style="color:var(--danger);">*</span></label>
           <input type="time" id="hora_fin" name="hora_fin" required
-                 value="{{ evento.hora_fin | string | truncate(5,True,'') if evento.hora_fin else '' }}"
+                 value="{{ evento.hora_fin | hora_fmt if evento.hora_fin else '' }}"
                  style="width:100%;">
         </div>
       </div>
@@ -101,13 +101,147 @@
       <div style="background:var(--bg-secondary); border-radius:8px; padding:12px;">
         <div style="font-size:11px; color:var(--text-secondary);">Horario</div>
         <div style="font-size:15px; font-weight:600;">
-          {{ evento.hora_inicio | string | truncate(5,True,'') if evento.hora_inicio else '—' }}
-          — {{ evento.hora_fin | string | truncate(5,True,'') if evento.hora_fin else '—' }}
+          {{ evento.hora_inicio | hora_fmt if evento.hora_inicio else '—' }}
+          — {{ evento.hora_fin | hora_fmt if evento.hora_fin else '—' }}
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FIRMA DEL DIRECTOR -->
+  <div class="card" style="margin-top:20px;">
+    <div class="section-header" style="margin-bottom:16px;">
+      <div>
+        <div class="section-title">Firma del Director</div>
+        <div style="font-size:13px; color:var(--text-secondary); margin-top:2px;">
+          Esta firma aparecerá en los diplomas de los estudiantes.
+        </div>
+      </div>
+    </div>
+
+    {% if firma %}
+    <!-- Firma existente -->
+    <div id="firma-preview">
+      <div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px;">Firma guardada actualmente:</div>
+      <img id="firma-actual" src="{{ firma }}"
+           style="height:80px; border:1.5px solid #e5e7eb; border-radius:8px; padding:8px; background:#fff; display:block; margin-bottom:12px;">
+      <button type="button" onclick="mostrarCanvas()" class="btn btn-outline btn-sm">
+        <i class="ti ti-pencil"></i> Cambiar firma
+      </button>
+    </div>
+
+    <!-- Canvas oculto hasta que el director quiera cambiar -->
+    <div id="firma-editor" style="display:none; margin-top:14px;">
+    {% else %}
+    <div id="firma-editor">
+    {% endif %}
+
+      <div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px;">
+        Dibuja tu firma aquí:
+      </div>
+      <canvas id="firma-canvas" width="540" height="150"
+        style="border:1.5px solid #d1d5db; border-radius:8px; cursor:crosshair;
+               touch-action:none; display:block; background:#fff; width:100%; max-width:540px;">
+      </canvas>
+
+      <div style="display:flex; gap:10px; margin-top:12px; align-items:center;">
+        {% if firma %}
+        <button type="button" onclick="ocultarCanvas()" class="btn btn-outline">
+          <i class="ti ti-x"></i> Cancelar
+        </button>
+        {% endif %}
+        <button type="button" onclick="limpiarFirma()" class="btn btn-outline">
+          <i class="ti ti-trash"></i> Limpiar
+        </button>
+        <button type="button" onclick="guardarFirma()" class="btn btn-primary">
+          <i class="ti ti-device-floppy"></i> Guardar firma
+        </button>
+        <span id="firma-msg" style="font-size:13px; display:none;"></span>
       </div>
     </div>
   </div>
 
   {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const canvas = document.getElementById('firma-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#111827';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  let drawing = false;
+
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    const sx = canvas.width / r.width;
+    const sy = canvas.height / r.height;
+    const src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - r.left) * sx, y: (src.clientY - r.top) * sy };
+  }
+
+  canvas.addEventListener('mousedown',  e => { drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+  canvas.addEventListener('mousemove',  e => { if (!drawing) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); });
+  canvas.addEventListener('mouseup',    () => drawing = false);
+  canvas.addEventListener('mouseleave', () => drawing = false);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }, { passive: false });
+  canvas.addEventListener('touchmove',  e => { e.preventDefault(); if (!drawing) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); }, { passive: false });
+  canvas.addEventListener('touchend',   () => drawing = false);
+
+  window.mostrarCanvas = function () {
+    document.getElementById('firma-preview').style.display = 'none';
+    document.getElementById('firma-editor').style.display = 'block';
+  };
+
+  window.ocultarCanvas = function () {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    document.getElementById('firma-editor').style.display = 'none';
+    document.getElementById('firma-preview').style.display = 'block';
+  };
+
+  window.limpiarFirma = function () {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  window.guardarFirma = function () {
+    const px = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const vacio = !Array.from(px).some((v, i) => i % 4 === 3 && v > 0);
+    if (vacio) { mostrarMsg('Dibuja tu firma antes de guardar.', 'var(--danger)'); return; }
+
+    fetch("{{ url_for('docente.guardar_firma') }}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ firma: canvas.toDataURL('image/png') })
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        mostrarMsg('Firma guardada correctamente.', 'var(--success)');
+        const img = document.getElementById('firma-actual');
+        if (img) {
+          img.src = canvas.toDataURL('image/png');
+          setTimeout(ocultarCanvas, 1000);
+        } else {
+          location.reload();
+        }
+      } else {
+        mostrarMsg('Error al guardar la firma.', 'var(--danger)');
+      }
+    });
+  };
+
+  function mostrarMsg(txt, color) {
+    const el = document.getElementById('firma-msg');
+    el.textContent = txt;
+    el.style.color = color;
+    el.style.display = 'inline';
+    setTimeout(() => el.style.display = 'none', 3000);
+  }
+})();
+</script>
 {% endblock %}

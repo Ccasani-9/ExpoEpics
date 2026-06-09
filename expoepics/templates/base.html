@@ -50,6 +50,7 @@
            class="nav-item {% if 'registro' in (request.endpoint or '') or 'estudiante' in (request.endpoint or '') and 'docente' in (request.endpoint or '') %}active{% endif %}">
           <i class="ti ti-users-plus"></i> Registro de Estudiantes
         </a>
+        {% if session.es_director %}
         <a href="{{ url_for('docente.asistencia') }}"
            class="nav-item {% if 'asistencia' in (request.endpoint or '') and 'docente' in (request.endpoint or '') %}active{% endif %}">
           <i class="ti ti-clipboard-check"></i> Asistencia
@@ -58,6 +59,7 @@
            class="nav-item {% if request.endpoint == 'docente.ajustes' %}active{% endif %}">
           <i class="ti ti-settings"></i> Ajustes ExpoEpics
         </a>
+        {% endif %}
         <a href="{{ url_for('docente.cuenta') }}"
            class="nav-item {% if request.endpoint == 'docente.cuenta' %}active{% endif %}">
           <i class="ti ti-user-circle"></i> Mi Cuenta
@@ -67,6 +69,10 @@
         <a href="{{ url_for('secretaria.dashboard') }}"
            class="nav-item {% if request.endpoint == 'secretaria.dashboard' %}active{% endif %}">
           <i class="ti ti-layout-dashboard"></i> Dashboard
+        </a>
+        <a href="{{ url_for('admin.mesas') }}"
+           class="nav-item {% if request.endpoint in ('admin.mesas','admin.crear_mesa','admin.editar_mesa','admin.eliminar_mesa') %}active{% endif %}">
+          <i class="ti ti-table"></i> Mesas
         </a>
         <a href="{{ url_for('secretaria.tareas') }}"
            class="nav-item {% if 'tarea' in (request.endpoint or '') %}active{% endif %}">
@@ -79,6 +85,10 @@
         <a href="{{ url_for('secretaria.diplomas') }}"
            class="nav-item {% if 'diploma' in (request.endpoint or '') %}active{% endif %}">
           <i class="ti ti-certificate"></i> Diplomas
+        </a>
+        <a href="{{ url_for('secretaria.complementos') }}"
+           class="nav-item {% if 'complemento' in (request.endpoint or '') %}active{% endif %}">
+          <i class="ti ti-gift"></i> Complementos
         </a>
         <a href="{{ url_for('secretaria.ajustes') }}"
            class="nav-item {% if request.endpoint == 'secretaria.ajustes' %}active{% endif %}">

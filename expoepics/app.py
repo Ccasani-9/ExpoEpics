@@ -2,11 +2,42 @@ from flask import Flask, redirect, url_for, session
 from config import Config
 from database import close_db, query
 
+_MESES_ES = {
+    'January': 'Enero', 'February': 'Febrero', 'March': 'Marzo',
+    'April': 'Abril', 'May': 'Mayo', 'June': 'Junio',
+    'July': 'Julio', 'August': 'Agosto', 'September': 'Septiembre',
+    'October': 'Octubre', 'November': 'Noviembre', 'December': 'Diciembre',
+}
+_DIAS_ES = {
+    'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
+    'Thursday': 'Jueves', 'Friday': 'Viernes', 'Saturday': 'Sábado', 'Sunday': 'Domingo',
+}
+
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     app.teardown_appcontext(close_db)
+
+    @app.template_filter('fecha_es')
+    def fecha_es_filter(fecha, fmt='%d de %B de %Y'):
+        if not fecha:
+            return ''
+        s = fecha.strftime(fmt)
+        for en, es in _MESES_ES.items():
+            s = s.replace(en, es)
+        for en, es in _DIAS_ES.items():
+            s = s.replace(en, es)
+        return s
+
+    @app.template_filter('hora_fmt')
+    def hora_fmt_filter(t):
+        if t is None:
+            return '—'
+        if hasattr(t, 'strftime'):
+            return t.strftime('%H:%M')
+        total = int(t.total_seconds())
+        return f"{total // 3600:02d}:{(total % 3600) // 60:02d}"
 
     @app.context_processor
     def inject_evento_activo():
@@ -30,7 +61,7 @@ def create_app():
     app.register_blueprint(admin_bp)
 
     @app.route('/')
-    def index():1
+    def index():
         if 'id_persona' not in session:
             return redirect(url_for('auth.login'))
         _map = {

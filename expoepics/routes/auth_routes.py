@@ -101,6 +101,11 @@ def login():
         session['role_id']    = roles[primary]
         session['temp_pass']  = bool(persona['contrasena_temporal'])
 
+        if primary == 'docente':
+            doc = query("SELECT es_director FROM docente_expoepics WHERE id_docente=%s",
+                        (roles[primary],), fetch_one=True)
+            session['es_director'] = bool(doc and doc.get('es_director', 0))
+
         if persona['contrasena_temporal']:
             return redirect(url_for('auth.cambiar_pass'))
 

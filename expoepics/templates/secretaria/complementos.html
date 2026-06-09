@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% block title %}Complementos{% endblock %}
+{% block page_title %}Complementos{% endblock %}
+
+{% block content %}
+<script id="comp-data" type="application/json">{{ cursos | tojson }}</script>
+
+<!-- VISTA 1: TARJETAS DE CURSOS -->
+<div id="vista-cursos">
+  <p style="color:var(--muted); margin-bottom:20px; font-size:14px;">
+    Selecciona un curso para registrar qué estudiantes recibieron su complemento.
+  </p>
+  <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px;" id="cursos-grid"></div>
+  <div id="sin-asistentes" style="display:none;">
+    <div class="alert alert-info"><i class="ti ti-info-circle"></i> No hay estudiantes con asistencia registrada aún.</div>
+  </div>
+</div>
+
+<!-- VISTA 2: ESTUDIANTES DEL CURSO -->
+<div id="vista-estudiantes" style="display:none;">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <button onclick="volverCursos()" class="btn btn-outline btn-sm">
+        <i class="ti ti-arrow-left"></i> Volver a cursos
+      </button>
+      <div>
+        <div id="curso-titulo" style="font-size:18px; font-weight:700;"></div>
+        <div id="curso-sub" style="font-size:13px; color:var(--muted);"></div>
+      </div>
+    </div>
+    <button id="btn-marcar-todos" onclick="marcarTodos()" class="btn btn-primary btn-sm">
+      <i class="ti ti-checks"></i> Marcar todos como recibido
+    </button>
+  </div>
+  <div id="estudiantes-lista"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var CURSOS    = JSON.parse(document.getElementById('comp-data').textContent);
+var ID_EVENTO = {{ evento.id_evento }};
+var cursoActual = null;
+
+/* ── VISTA 1: tarjetas de cursos ── */
+function renderCursos() {
+  var grid = document.getElementById('cursos-grid');
+  grid.innerHTML = '';
+  if (!CURSOS.length) {
+    document.getElementById('sin-asistentes').style.display = '';
+    return;
+  }
+  CURSOS.forEach(function(c) {
+    var total    = c.estudiantes.length;
+    var recibieron = c.estudiantes.filter(function(e){ return e.recibio_complemento; }).length;
+    var completo = recibieron === total;
+
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.style.cssText = 'cursor:pointer; border-top:4px solid ' + c.color + '; transition:box-shadow .15s;';
+    card.onmouseenter = function(){ this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)'; };
+    card.onmouseleave = function(){ this.style.boxShadow=''; };
+    card.onclick = function(){ seleccionarCurso(c); };
+    card.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
+        '<div style="width:36px;height:36px;border-radius:8px;background:' + c.color + ';display:flex;align-items:center;justify-content:center;">' +
+          '<i class="ti ti-gift" style="color:#fff;font-size:18px;"></i>' +
+        '</div>' +
+        '<div style="font-weight:600;font-size:14px;flex:1;">' + c.nombre_curso + '</div>' +
+      '</div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);">' +
+        '<span><i class="ti ti-users"></i> ' + total + ' asistentes</span>' +
+        '<span style="color:' + (completo ? 'var(--success)' : 'var(--muted)') + ';">' +
+          '<i class="ti ti-gift"></i> ' + recibieron + '/' + total + ' recibieron</span>' +
+      '</div>';
+    grid.appendChild(card);
+  });
+}
+
+/* ── Seleccionar curso ── */
+function seleccionarCurso(c) {
+  cursoActual = c;
+  document.getElementById('vista-cursos').style.display    = 'none';
+  document.getElementById('vista-estudiantes').style.display = '';
+  document.getElementById('curso-titulo').textContent = c.nombre_curso;
+  actualizarSubtitulo();
+  renderEstudiantes();
+}
+
+function actualizarSubtitulo() {
+  var total      = cursoActual.estudiantes.length;
+  var recibieron = cursoActual.estudiantes.filter(function(e){ return e.recibio_complemento; }).length;
+  document.getElementById('curso-sub').textContent =
+    total + ' asistentes · ' + recibieron + ' recibieron complemento';
+}
+
+/* ── VISTA 2: tabla de estudiantes ── */
+function renderEstudiantes() {
+  var lista = document.getElementById('estudiantes-lista');
+  lista.innerHTML = '';
+  if (!cursoActual.estudiantes.length) {
+    lista.innerHTML = '<div class="alert alert-info">No hay asistentes en este curso.</div>';
+    return;
+  }
+  var tabla = document.createElement('div');
+  tabla.className = 'card';
+  tabla.style.padding = '0';
+
+  var html = '<table style="width:100%;border-collapse:collapse;">' +
+    '<thead><tr style="background:var(--bg);font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">' +
+    '<th style="padding:12px 16px;text-align:left;">Estudiante</th>' +
+    '<th style="padding:12px 16px;text-align:left;">DNI</th>' +
+    '<th style="padding:12px 16px;text-align:center;">Estado</th>' +
+    '<th style="padding:12px 16px;text-align:center;">Acción</th>' +
+    '</tr></thead><tbody id="tbody-comp">';
+
+  cursoActual.estudiantes.forEach(function(e, i) {
+    html += filaHtml(e, i);
+  });
+
+  html += '</tbody></table>';
+  tabla.innerHTML = html;
+  lista.appendChild(tabla);
+}
+
+function filaHtml(e, i) {
+  var bg      = i % 2 === 0 ? '' : 'background:var(--bg);';
+  var recibio = e.recibio_complemento;
+  var badge   = recibio
+    ? '<span class="badge badge-green"><i class="ti ti-check"></i> Recibido</span>'
+    : '<span class="badge badge-gray">Pendiente</span>';
+  var btn = recibio
+    ? '<button onclick="toggleComp(' + e.id_estudiante + ', 0, this)" class="btn btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger);">' +
+        '<i class="ti ti-x"></i> Quitar</button>'
+    : '<button onclick="toggleComp(' + e.id_estudiante + ', 1, this)" class="btn btn-primary btn-sm">' +
+        '<i class="ti ti-check"></i> Marcar recibido</button>';
+
+  return '<tr data-id="' + e.id_estudiante + '" style="' + bg + '">' +
+    '<td style="padding:12px 16px;font-weight:500;">' + escHtml(e.apellido) + ', ' + escHtml(e.nombre) + '</td>' +
+    '<td style="padding:12px 16px;color:var(--muted);">' + e.dni + '</td>' +
+    '<td style="padding:12px 16px;text-align:center;" class="td-badge">' + badge + '</td>' +
+    '<td style="padding:12px 16px;text-align:center;" class="td-btn">' + btn + '</td>' +
+    '</tr>';
+}
+
+/* ── Toggle individual ── */
+function toggleComp(idEstudiante, valor, btnEl) {
+  btnEl.disabled = true;
+  fetch('/secretaria/complementos/marcar', {
+    method:  'POST',
+    headers: {'Content-Type': 'application/json'},
+    body:    JSON.stringify({id_estudiante: idEstudiante, id_evento: ID_EVENTO, valor: valor})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data) {
+    if (!data.ok) { btnEl.disabled = false; return; }
+
+    /* Actualizar datos en memoria */
+    var est = cursoActual.estudiantes.find(function(e){ return e.id_estudiante === idEstudiante; });
+    if (est) est.recibio_complemento = !!valor;
+
+    /* Actualizar fila en la tabla */
+    var fila = document.querySelector('tr[data-id="' + idEstudiante + '"]');
+    if (fila) {
+      var idx = Array.from(fila.parentNode.children).indexOf(fila);
+      var recibio = !!valor;
+      fila.querySelector('.td-badge').innerHTML = recibio
+        ? '<span class="badge badge-green"><i class="ti ti-check"></i> Recibido</span>'
+        : '<span class="badge badge-gray">Pendiente</span>';
+      fila.querySelector('.td-btn').innerHTML = recibio
+        ? '<button onclick="toggleComp(' + idEstudiante + ', 0, this)" class="btn btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger);"><i class="ti ti-x"></i> Quitar</button>'
+        : '<button onclick="toggleComp(' + idEstudiante + ', 1, this)" class="btn btn-primary btn-sm"><i class="ti ti-check"></i> Marcar recibido</button>';
+    }
+
+    actualizarSubtitulo();
+    actualizarContadorTarjeta();
+  })
+  .catch(function(){ btnEl.disabled = false; });
+}
+
+/* ── Marcar todos ── */
+function marcarTodos() {
+  var btn = document.getElementById('btn-marcar-todos');
+  btn.disabled = true;
+  fetch('/secretaria/complementos/marcar-todos', {
+    method:  'POST',
+    headers: {'Content-Type': 'application/json'},
+    body:    JSON.stringify({id_curso: cursoActual.id_curso, id_evento: ID_EVENTO})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data) {
+    btn.disabled = false;
+    if (!data.ok) return;
+
+    /* Actualizar todos en memoria */
+    cursoActual.estudiantes.forEach(function(e){ e.recibio_complemento = true; });
+
+    /* Re-renderizar tabla */
+    renderEstudiantes();
+    actualizarSubtitulo();
+    actualizarContadorTarjeta();
+  })
+  .catch(function(){ btn.disabled = false; });
+}
+
+/* ── Actualizar contador en tarjeta ── */
+function actualizarContadorTarjeta() {
+  /* Buscar la tarjeta del curso actual y actualizar su contador */
+  var grid   = document.getElementById('cursos-grid');
+  var cards  = grid.querySelectorAll('.card');
+  var idx    = CURSOS.findIndex(function(c){ return c.id_curso === cursoActual.id_curso; });
+  if (idx < 0 || !cards[idx]) return;
+
+  var c = cursoActual;
+  var total      = c.estudiantes.length;
+  var recibieron = c.estudiantes.filter(function(e){ return e.recibio_complemento; }).length;
+  var completo   = recibieron === total;
+  var span = cards[idx].querySelectorAll('span')[1];
+  if (span) {
+    span.style.color = completo ? 'var(--success)' : 'var(--muted)';
+    span.innerHTML = '<i class="ti ti-gift"></i> ' + recibieron + '/' + total + ' recibieron';
+  }
+}
+
+/* ── Volver ── */
+function volverCursos() {
+  document.getElementById('vista-estudiantes').style.display = 'none';
+  document.getElementById('vista-cursos').style.display      = '';
+}
+
+/* ── Utilidades ── */
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+renderCursos();
+</script>
+{% endblock %}

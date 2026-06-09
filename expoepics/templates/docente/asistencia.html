@@ -15,7 +15,7 @@
     {% if evento %}
       <div style="color:var(--text-secondary); font-size:0.875rem; margin-top:4px;">
         Evento: <strong>{{ evento.fecha.strftime('%d/%m/%Y') }}</strong> —
-        {{ evento.hora_inicio }} a {{ evento.hora_fin }}
+        {{ evento.hora_inicio | hora_fmt }} a {{ evento.hora_fin | hora_fmt }}
       </div>
     {% endif %}
   </div>
@@ -71,7 +71,7 @@
       </div>
       {% if evento %}
         <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">
-          {{ evento.fecha.strftime('%d/%m/%Y') }} — {{ evento.hora_inicio }} a {{ evento.hora_fin }}
+          {{ evento.fecha.strftime('%d/%m/%Y') }} — {{ evento.hora_inicio | hora_fmt }} a {{ evento.hora_fin | hora_fmt }}
         </div>
       {% endif %}
     </div>

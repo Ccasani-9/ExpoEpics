@@ -81,7 +81,7 @@
         <label for="calificacion">Calificación <span style="color:var(--danger);">*</span></label>
         <select id="calificacion" name="calificacion" required>
           <option value="">— Selecciona una calificación —</option>
-          {% for cal in ['Excelente','Muy buena','Buena','Regular','Mala','Muy mala','Revisado'] %}
+          {% for cal in ['Excelente','Muy buena','Buena','Regular','Mala','Revisado'] %}
             <option value="{{ cal }}"
               {% if evaluacion and evaluacion.calificacion == cal %}selected{% endif %}>
               {{ cal }}

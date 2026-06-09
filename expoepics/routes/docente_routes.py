@@ -886,6 +886,9 @@ def eliminar_estudiante(id_inscripcion):
 @docente_bp.route('/asistencia')
 @role_required('docente')
 def asistencia():
+    if not session.get('es_director'):
+        flash('Solo el director puede acceder a esta sección.', 'danger')
+        return redirect(url_for('docente.dashboard'))
     evento = _get_evento()
     if not evento:
         flash('No hay un evento activo.', 'warning')
@@ -957,6 +960,9 @@ def asistencia_guardar():
 @docente_bp.route('/ajustes', methods=['GET', 'POST'])
 @role_required('docente')
 def ajustes():
+    if not session.get('es_director'):
+        flash('Solo el director puede acceder a esta sección.', 'danger')
+        return redirect(url_for('docente.dashboard'))
     evento = _get_evento()
 
     if request.method == 'POST':
@@ -983,7 +989,24 @@ def ajustes():
         flash('Ajustes de ExpoEpics guardados correctamente.', 'success')
         return redirect(url_for('docente.ajustes'))
 
-    return render_template('docente/ajustes.html', evento=evento)
+    doc = query("SELECT firma FROM docente_expoepics WHERE id_docente=%s",
+                (session['role_id'],), fetch_one=True)
+    firma = doc['firma'] if doc else None
+    return render_template('docente/ajustes.html', evento=evento, firma=firma)
+
+
+@docente_bp.route('/ajustes/firma', methods=['POST'])
+@role_required('docente')
+def guardar_firma():
+    if not session.get('es_director'):
+        return jsonify({'ok': False}), 403
+    data = request.get_json(silent=True) or {}
+    firma_data = data.get('firma', '')
+    if not firma_data.startswith('data:image/png;base64,'):
+        return jsonify({'ok': False, 'error': 'Formato inválido'}), 400
+    query("UPDATE docente_expoepics SET firma=%s WHERE id_docente=%s",
+          (firma_data, session['role_id']), commit=True)
+    return jsonify({'ok': True})
 
 
 @docente_bp.route('/cuenta', methods=['GET', 'POST'])

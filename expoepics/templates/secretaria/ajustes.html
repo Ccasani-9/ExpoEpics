@@ -54,13 +54,13 @@
         <div class="form-group">
           <label for="hora_inicio">Hora de inicio <span style="color:var(--danger);">*</span></label>
           <input type="time" id="hora_inicio" name="hora_inicio" required
-                 value="{{ evento.hora_inicio | string | truncate(5,True,'') if evento and evento.hora_inicio else '' }}"
+                 value="{{ evento.hora_inicio | hora_fmt if evento and evento.hora_inicio else '' }}"
                  style="width:100%;">
         </div>
         <div class="form-group">
           <label for="hora_fin">Hora de finalización <span style="color:var(--danger);">*</span></label>
           <input type="time" id="hora_fin" name="hora_fin" required
-                 value="{{ evento.hora_fin | string | truncate(5,True,'') if evento and evento.hora_fin else '' }}"
+                 value="{{ evento.hora_fin | hora_fmt if evento and evento.hora_fin else '' }}"
                  style="width:100%;">
         </div>
       </div>
@@ -95,8 +95,8 @@
       <div style="background:var(--bg-secondary); border-radius:8px; padding:12px;">
         <div style="font-size:11px; color:var(--text-secondary);">Horario</div>
         <div style="font-size:15px; font-weight:600;">
-          {{ evento.hora_inicio | string | truncate(5,True,'') if evento.hora_inicio else '—' }}
-          — {{ evento.hora_fin | string | truncate(5,True,'') if evento.hora_fin else '—' }}
+          {{ evento.hora_inicio | hora_fmt if evento.hora_inicio else '—' }}
+          — {{ evento.hora_fin | hora_fmt if evento.hora_fin else '—' }}
         </div>
       </div>
     </div>

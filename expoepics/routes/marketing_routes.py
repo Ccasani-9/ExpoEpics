@@ -7,8 +7,8 @@ from database import query
 
 marketing_bp = Blueprint('marketing', __name__, url_prefix='/marketing')
 
-_PESO = {'Excelente': 6, 'Muy buena': 5, 'Buena': 4,
-         'Regular': 3, 'Mala': 2, 'Muy mala': 1, 'Revisado': 0}
+_PESO = {'Excelente': 5, 'Muy buena': 4, 'Buena': 3,
+         'Regular': 2, 'Mala': 1, 'Revisado': 0}
 
 
 def _get_evento():
@@ -21,8 +21,8 @@ def _get_ranking(id_evento):
         "c.nombre AS nombre_curso, c.color, g.id_grupo, e.num_mesa, e.ubicacion, "
         "COUNT(ev.id_evaluacion) AS num_evaluaciones, "
         "AVG(CASE ev.calificacion "
-        "    WHEN 'Excelente' THEN 6 WHEN 'Muy buena' THEN 5 WHEN 'Buena' THEN 4 "
-        "    WHEN 'Regular'   THEN 3 WHEN 'Mala'      THEN 2 WHEN 'Muy mala' THEN 1 "
+        "    WHEN 'Excelente' THEN 5 WHEN 'Muy buena' THEN 4 WHEN 'Buena' THEN 3 "
+        "    WHEN 'Regular'   THEN 2 WHEN 'Mala'      THEN 1 "
         "    WHEN 'Revisado'  THEN 0 ELSE NULL END) AS promedio "
         "FROM proyecto p "
         "JOIN grupo g ON p.id_grupo=g.id_grupo "
@@ -39,7 +39,7 @@ def _get_ranking(id_evento):
 def _stars(promedio):
     if promedio is None:
         return 0
-    return round(promedio / 6 * 5, 1)
+    return round(promedio, 1)
 
 
 @marketing_bp.route('/ranking')
@@ -86,7 +86,7 @@ def exportar():
 
     buf = io.StringIO()
     w   = csv.writer(buf)
-    w.writerow(['Posición', 'Proyecto', 'Curso', 'Mesa', 'Promedio (0-6)', 'Estrellas (0-5)', 'Evaluaciones'])
+    w.writerow(['Posición', 'Proyecto', 'Curso', 'Mesa', 'Promedio (0-5)', 'Estrellas (0-5)', 'Evaluaciones'])
     for i, p in enumerate(filas, 1):
         prom  = f"{p['promedio']:.2f}" if p['promedio'] is not None else 'Sin calificar'
         stars = f"{_stars(p['promedio']):.1f}" if p['promedio'] is not None else '-'

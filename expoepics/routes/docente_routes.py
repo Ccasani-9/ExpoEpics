@@ -8,7 +8,39 @@ docente_bp = Blueprint('docente', __name__, url_prefix='/docente')
 
 
 def _get_evento():
-    return query("SELECT * FROM evento ORDER BY fecha DESC LIMIT 1", fetch_one=True)
+    id_vista = session.get('id_evento_vista')
+    if id_vista:
+        evt = query("SELECT * FROM evento WHERE id_evento=%s", (id_vista,), fetch_one=True)
+        if evt:
+            return evt
+    return query("SELECT * FROM evento WHERE es_activo=1 LIMIT 1", fetch_one=True)
+
+
+def _pct_proyectos_subidos(id_evento, id_docente=None):
+    """Porcentaje de grupos que ya subieron su proyecto (nombre cambiado del default o descripción cargada)."""
+    condicion_subido = (
+        "p.id_proyecto IS NOT NULL AND "
+        "(p.nombre NOT LIKE 'Proyecto Grupo%%' OR "
+        " (p.descripcion IS NOT NULL AND TRIM(p.descripcion) != ''))"
+    )
+    if id_docente:
+        row = query(
+            "SELECT COUNT(DISTINCT g.id_grupo) AS total, "
+            f"SUM(CASE WHEN {condicion_subido} THEN 1 ELSE 0 END) AS subidos "
+            "FROM grupo g JOIN curso c ON g.id_curso=c.id_curso "
+            "LEFT JOIN proyecto p ON p.id_grupo=g.id_grupo "
+            "WHERE g.id_evento=%s AND c.id_docente=%s",
+            (id_evento, id_docente), fetch_one=True)
+    else:
+        row = query(
+            "SELECT COUNT(DISTINCT g.id_grupo) AS total, "
+            f"SUM(CASE WHEN {condicion_subido} THEN 1 ELSE 0 END) AS subidos "
+            "FROM grupo g LEFT JOIN proyecto p ON p.id_grupo=g.id_grupo "
+            "WHERE g.id_evento=%s",
+            (id_evento,), fetch_one=True)
+    total   = row['total'] or 0
+    subidos = int(row['subidos'] or 0)
+    return int(round(subidos * 100.0 / total, 0)) if total else 0
 
 
 def _get_metricas(id_evento):
@@ -29,14 +61,12 @@ def _get_metricas(id_evento):
         (id_evento,), fetch_one=True)
     pct_tareas = int(pct_tarea_row['pct'] or 0) if pct_tarea_row and pct_tarea_row['pct'] is not None else 0
 
-    pct_inscripcion = round(participantes * 100.0 / max(grupos * 4, 1), 0) if grupos else 0
-
     return {
-        'participantes':   participantes,
-        'grupos':          grupos,
-        'proyectos':       proyectos,
-        'pct_inscripcion': int(pct_inscripcion),
-        'pct_tareas':      pct_tareas,
+        'participantes':        participantes,
+        'grupos':               grupos,
+        'proyectos':            proyectos,
+        'pct_proyectos_global': _pct_proyectos_subidos(id_evento),
+        'pct_tareas':           pct_tareas,
     }
 
 
@@ -82,12 +112,11 @@ def dashboard():
         "WHERE c.id_docente = %s",
         (id_docente,), fetch_one=True)['cnt']
 
-    metricas['participantes']   = est_docente
-    metricas['grupos']          = grp_docente
-    metricas['proyectos']       = proy_docente
-    metricas['pct_inscripcion'] = int(round(
-        est_docente * 100.0 / max(total_registrados, 1), 0
-    )) if total_registrados else 0
+    metricas['participantes'] = est_docente
+    metricas['grupos']        = grp_docente
+    metricas['proyectos']     = proy_docente
+    metricas['pct_proyectos'] = _pct_proyectos_subidos(id_evento, id_docente)
+    # pct_proyectos_global ya viene de _get_metricas (todos los cursos)
 
     chart_cursos = query(
         "SELECT c.nombre, COUNT(p.id_proyecto) AS total, c.color "
@@ -232,6 +261,71 @@ def api_proyectos():
             'ubicacion': r['ubicacion'],
         })
     return jsonify(list(cursos.values()))
+
+
+def _grupos_sin_proy_data(id_evento, id_docente=None):
+    sql = (
+        "SELECT g.id_grupo, g.nombre AS nombre_grupo, c.nombre AS nombre_curso, c.color, "
+        "e.num_mesa, e.ubicacion, "
+        "per.nombre AS est_nombre, per.apellido AS est_apellido, "
+        "CASE WHEN g.id_lider=es.id_estudiante THEN 1 ELSE 0 END AS es_lider "
+        "FROM grupo g "
+        "JOIN curso c ON g.id_curso=c.id_curso "
+        "JOIN espacio e ON g.id_espacio=e.id_espacio "
+        "LEFT JOIN proyecto p ON p.id_grupo=g.id_grupo "
+        "LEFT JOIN estudiante_grupo eg ON eg.id_grupo=g.id_grupo "
+        "LEFT JOIN estudiante es ON eg.id_estudiante=es.id_estudiante "
+        "LEFT JOIN persona per ON es.id_persona=per.id_persona "
+        "WHERE g.id_evento=%s "
+        "AND (p.id_proyecto IS NULL OR "
+        "     (p.nombre LIKE 'Proyecto Grupo%%' AND "
+        "      (p.descripcion IS NULL OR TRIM(p.descripcion)=''))) "
+    )
+    params = [id_evento]
+    if id_docente:
+        sql += "AND c.id_docente=%s "
+        params.append(id_docente)
+    sql += "ORDER BY c.nombre, g.id_grupo, es_lider DESC, per.apellido"
+    rows = query(sql, tuple(params))
+    cursos = {}
+    for row in rows:
+        cn = row['nombre_curso']
+        if cn not in cursos:
+            cursos[cn] = {'nombre_curso': cn, 'color': row['color'], 'grupos': {}}
+        gi = row['id_grupo']
+        if gi not in cursos[cn]['grupos']:
+            cursos[cn]['grupos'][gi] = {
+                'id_grupo': gi, 'nombre': row['nombre_grupo'],
+                'num_mesa': row['num_mesa'], 'ubicacion': row['ubicacion'],
+                'integrantes': []
+            }
+        if row['est_nombre']:
+            cursos[cn]['grupos'][gi]['integrantes'].append({
+                'nombre': row['est_nombre'], 'apellido': row['est_apellido'],
+                'es_lider': bool(row['es_lider'])
+            })
+    return [{'nombre_curso': v['nombre_curso'], 'color': v['color'],
+             'grupos': list(v['grupos'].values())} for v in cursos.values()]
+
+
+@docente_bp.route('/api/grupos-sin-proyecto')
+@role_required('docente')
+def api_grupos_sin_proyecto():
+    evento = _get_evento()
+    if not evento:
+        return jsonify([])
+    return jsonify(_grupos_sin_proy_data(evento['id_evento'], session['role_id']))
+
+
+@docente_bp.route('/api/grupos-sin-proyecto-global')
+@role_required('docente')
+def api_grupos_sin_proyecto_global():
+    if not session.get('es_director'):
+        return jsonify({'error': 'No autorizado'}), 403
+    evento = _get_evento()
+    if not evento:
+        return jsonify([])
+    return jsonify(_grupos_sin_proy_data(evento['id_evento']))
 
 
 @docente_bp.route('/proyectos')
@@ -508,6 +602,11 @@ def crear_grupo():
         "INSERT INTO grupo (id_curso, id_evento, id_espacio, estado, nombre, color) "
         "VALUES (%s,%s,%s,'Postulado',%s,%s)",
         (id_curso, evento['id_evento'], id_espacio, nombre, color), commit=True)
+
+    # Crear proyecto vacío para que el líder pueda completarlo desde su portal
+    query(
+        "INSERT INTO proyecto (id_grupo, nombre, estado) VALUES (%s,%s,'Registrado')",
+        (id_grupo, f"Proyecto Grupo {nombre}"), commit=True)
 
     return jsonify({
         'id_grupo':   id_grupo,

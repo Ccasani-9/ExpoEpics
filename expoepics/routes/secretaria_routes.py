@@ -14,7 +14,29 @@ secretaria_bp = Blueprint('secretaria', __name__, url_prefix='/secretaria')
 
 
 def _get_evento():
-    return query("SELECT * FROM evento ORDER BY fecha DESC LIMIT 1", fetch_one=True)
+    id_vista = session.get('id_evento_vista')
+    if id_vista:
+        evt = query("SELECT * FROM evento WHERE id_evento=%s", (id_vista,), fetch_one=True)
+        if evt:
+            return evt
+    return query("SELECT * FROM evento WHERE es_activo=1 LIMIT 1", fetch_one=True)
+
+
+def _pct_proyectos_global(id_evento):
+    condicion = (
+        "p.id_proyecto IS NOT NULL AND "
+        "(p.nombre NOT LIKE 'Proyecto Grupo%%' OR "
+        " (p.descripcion IS NOT NULL AND TRIM(p.descripcion) != ''))"
+    )
+    row = query(
+        "SELECT COUNT(DISTINCT g.id_grupo) AS total, "
+        f"SUM(CASE WHEN {condicion} THEN 1 ELSE 0 END) AS subidos "
+        "FROM grupo g LEFT JOIN proyecto p ON p.id_grupo=g.id_grupo "
+        "WHERE g.id_evento=%s",
+        (id_evento,), fetch_one=True)
+    total   = row['total'] or 0
+    subidos = int(row['subidos'] or 0)
+    return int(round(subidos * 100.0 / total, 0)) if total else 0
 
 
 def _get_metricas(id_evento):
@@ -32,11 +54,11 @@ def _get_metricas(id_evento):
         (id_evento,), fetch_one=True)
     pct_tareas = int(pct_row['pct'] or 0) if pct_row and pct_row['pct'] is not None else 0
     return {
-        'participantes':   participantes,
-        'grupos':          grupos,
-        'proyectos':       proyectos,
-        'pct_inscripcion': int(round(participantes * 100.0 / max(grupos * 4, 1), 0)) if grupos else 0,
-        'pct_tareas':      pct_tareas,
+        'participantes':        participantes,
+        'grupos':               grupos,
+        'proyectos':            proyectos,
+        'pct_proyectos_global': _pct_proyectos_global(id_evento),
+        'pct_tareas':           pct_tareas,
     }
 
 
@@ -191,6 +213,53 @@ def api_proyectos():
             'ubicacion': r['ubicacion'],
         })
     return jsonify(list(cursos.values()))
+
+
+@secretaria_bp.route('/api/grupos-sin-proyecto')
+@role_required('secretaria')
+def api_grupos_sin_proyecto():
+    evento = _get_evento()
+    if not evento:
+        return jsonify([])
+    condicion = (
+        "p.id_proyecto IS NULL OR "
+        "(p.nombre LIKE 'Proyecto Grupo%%' AND "
+        " (p.descripcion IS NULL OR TRIM(p.descripcion)=''))"
+    )
+    rows = query(
+        "SELECT g.id_grupo, g.nombre AS nombre_grupo, c.nombre AS nombre_curso, c.color, "
+        "e.num_mesa, e.ubicacion, "
+        "per.nombre AS est_nombre, per.apellido AS est_apellido, "
+        "CASE WHEN g.id_lider=es.id_estudiante THEN 1 ELSE 0 END AS es_lider "
+        "FROM grupo g "
+        "JOIN curso c ON g.id_curso=c.id_curso "
+        "JOIN espacio e ON g.id_espacio=e.id_espacio "
+        f"LEFT JOIN proyecto p ON p.id_grupo=g.id_grupo "
+        "LEFT JOIN estudiante_grupo eg ON eg.id_grupo=g.id_grupo "
+        "LEFT JOIN estudiante es ON eg.id_estudiante=es.id_estudiante "
+        "LEFT JOIN persona per ON es.id_persona=per.id_persona "
+        f"WHERE g.id_evento=%s AND ({condicion}) "
+        "ORDER BY c.nombre, g.id_grupo, es_lider DESC, per.apellido",
+        (evento['id_evento'],))
+    cursos = {}
+    for row in rows:
+        cn = row['nombre_curso']
+        if cn not in cursos:
+            cursos[cn] = {'nombre_curso': cn, 'color': row['color'], 'grupos': {}}
+        gi = row['id_grupo']
+        if gi not in cursos[cn]['grupos']:
+            cursos[cn]['grupos'][gi] = {
+                'id_grupo': gi, 'nombre': row['nombre_grupo'],
+                'num_mesa': row['num_mesa'], 'ubicacion': row['ubicacion'],
+                'integrantes': []
+            }
+        if row['est_nombre']:
+            cursos[cn]['grupos'][gi]['integrantes'].append({
+                'nombre': row['est_nombre'], 'apellido': row['est_apellido'],
+                'es_lider': bool(row['es_lider'])
+            })
+    return jsonify([{'nombre_curso': v['nombre_curso'], 'color': v['color'],
+                     'grupos': list(v['grupos'].values())} for v in cursos.values()])
 
 
 @secretaria_bp.route('/tareas')
@@ -381,6 +450,31 @@ def ajustes():
         return redirect(url_for('secretaria.ajustes'))
 
     return render_template('secretaria/ajustes.html', evento=evento)
+
+
+@secretaria_bp.route('/nuevo-evento', methods=['POST'])
+@role_required('secretaria')
+def nuevo_evento():
+    edicion     = request.form.get('edicion',     type=int)
+    fecha       = request.form.get('fecha',       '').strip()
+    hora_inicio = request.form.get('hora_inicio', '').strip()
+    hora_fin    = request.form.get('hora_fin',    '').strip()
+    semestre    = request.form.get('semestre',    type=int)
+    anio        = request.form.get('anio',        type=int)
+
+    if not all([edicion, fecha, hora_inicio, hora_fin, semestre, anio]):
+        flash('Todos los campos son obligatorios.', 'danger')
+        return redirect(url_for('secretaria.ajustes'))
+
+    query("UPDATE evento SET es_activo=0", commit=True)
+    id_nuevo = query(
+        "INSERT INTO evento (edicion, fecha, hora_inicio, hora_fin, semestre, anio, es_activo) "
+        "VALUES (%s,%s,%s,%s,%s,%s,1)",
+        (edicion, fecha, hora_inicio, hora_fin, semestre, anio), commit=True)
+    session.pop('id_evento_vista', None)
+
+    flash('Nueva ExpoEpics creada correctamente. Ahora es el evento activo.', 'success')
+    return redirect(url_for('secretaria.ajustes'))
 
 
 

@@ -41,8 +41,14 @@ def create_app():
 
     @app.context_processor
     def inject_evento_activo():
-        evt = query("SELECT * FROM evento ORDER BY fecha DESC LIMIT 1", fetch_one=True)
-        return {'g_evento': evt}
+        todos = query("SELECT * FROM evento ORDER BY fecha DESC")
+        id_vista = session.get('id_evento_vista')
+        evt = None
+        if id_vista:
+            evt = query("SELECT * FROM evento WHERE id_evento=%s", (id_vista,), fetch_one=True)
+        if not evt:
+            evt = query("SELECT * FROM evento WHERE es_activo=1 LIMIT 1", fetch_one=True)
+        return {'g_evento': evt, 'g_todos_eventos': todos or []}
 
     from routes.auth_routes           import auth_bp
     from routes.docente_routes        import docente_bp

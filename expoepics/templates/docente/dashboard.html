@@ -27,16 +27,28 @@
     <div class="metric-value">{{ metricas.proyectos }}</div>
     <div class="metric-sub">Proyectos en el evento</div>
   </div>
-  <div class="metric-card mc-colored mc-gold">
-    <i class="ti ti-chart-line mc-icon"></i>
-    <div class="metric-label">% Inscripción</div>
-    <div class="metric-value">{{ metricas.pct_inscripcion }}%</div>
+  <div class="metric-card mc-colored mc-gold metric-card-clickable" onclick="openSinProyecto(false)">
+    <i class="ti ti-chart-bar mc-icon"></i>
+    <div class="metric-label">% Inscripción de Proyectos</div>
+    <div class="metric-value">{{ metricas.pct_proyectos }}%</div>
     <div class="progress-wrap" style="margin-top:8px;">
       <div class="progress-bar-bg">
-        <div class="progress-bar-fill" style="width:{{ metricas.pct_inscripcion }}%"></div>
+        <div class="progress-bar-fill" style="width:{{ metricas.pct_proyectos }}%"></div>
       </div>
     </div>
   </div>
+  {% if session.es_director %}
+  <div class="metric-card mc-colored mc-gold metric-card-clickable" style="opacity:.85;" onclick="openSinProyecto(true)">
+    <i class="ti ti-world mc-icon"></i>
+    <div class="metric-label">% Inscripción de Proyectos Global</div>
+    <div class="metric-value">{{ metricas.pct_proyectos_global }}%</div>
+    <div class="progress-wrap" style="margin-top:8px;">
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" style="width:{{ metricas.pct_proyectos_global }}%"></div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
   <div class="metric-card mc-colored mc-green metric-card-clickable" onclick="abrirModalTareas('Todos')" style="cursor:pointer;">
     <i class="ti ti-checklist mc-icon"></i>
     <div class="metric-label">% Tareas completadas</div>
@@ -217,6 +229,19 @@
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: GRUPOS SIN PROYECTO ══ -->
+<div class="modal-overlay" id="modal-sin-proyecto" onclick="if(event.target===this)cerrarSinProyecto()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-sin-proy-title"><i class="ti ti-alert-circle" style="margin-right:6px;color:#d97706;"></i>Grupos sin proyecto subido</div>
+      <button class="modal-close" onclick="cerrarSinProyecto()">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="modal-sin-proy-body">
+      <div class="modal-loading">Cargando...</div>
     </div>
   </div>
 </div>
@@ -500,5 +525,79 @@
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') cerrarModalTareas();
   });
+
+  /* ── Modal grupos sin proyecto ── */
+  var _spData  = null;
+  var _spCursoIdx = null;
+
+  function openSinProyecto(esGlobal) {
+    var overlay = document.getElementById('modal-sin-proyecto');
+    var body    = document.getElementById('modal-sin-proy-body');
+    var title   = document.getElementById('modal-sin-proy-title');
+    overlay.classList.add('open');
+    body.innerHTML = '<div class="modal-loading">Cargando...</div>';
+    title.innerHTML = '<i class="ti ti-alert-circle" style="margin-right:6px;color:#d97706;"></i>'
+      + (esGlobal ? 'Grupos sin proyecto — Global' : 'Grupos sin proyecto — Mis cursos');
+    _spData = null; _spCursoIdx = null;
+    var url = esGlobal ? '/docente/api/grupos-sin-proyecto-global' : '/docente/api/grupos-sin-proyecto';
+    fetch(url).then(function(r){ return r.json(); }).then(function(data){
+      _spData = data;
+      _renderSpCursos(body);
+    }).catch(function(){ body.innerHTML = '<div class="modal-empty">Error al cargar.</div>'; });
+  }
+
+  function cerrarSinProyecto() {
+    document.getElementById('modal-sin-proyecto').classList.remove('open');
+  }
+
+  function _renderSpCursos(body) {
+    if (!body) body = document.getElementById('modal-sin-proy-body');
+    if (!_spData || !_spData.length) {
+      body.innerHTML = '<div class="modal-empty" style="color:#16a34a;"><i class="ti ti-circle-check" style="font-size:32px;display:block;margin-bottom:8px;"></i>¡Todos los grupos han subido su proyecto!</div>';
+      return;
+    }
+    var html = '<div class="curso-cards-grid">';
+    _spData.forEach(function(c, i){
+      var n = c.grupos.length;
+      html += '<div class="curso-card" style="border-top:4px solid '+ c.color +';cursor:pointer;" onclick="_renderSpGrupos('+i+')">'
+        + '<div class="curso-card-name">' + c.nombre_curso + '</div>'
+        + '<div style="font-size:22px;font-weight:800;color:#d97706;">' + n + '</div>'
+        + '<div style="font-size:12px;color:var(--muted);">grupo' + (n!==1?'s':'') + ' pendiente' + (n!==1?'s':'') + '</div>'
+        + '</div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+  }
+
+  function _renderSpGrupos(idx) {
+    _spCursoIdx = idx;
+    var c    = _spData[idx];
+    var body = document.getElementById('modal-sin-proy-body');
+    var html = '<button class="btn btn-outline btn-sm" style="margin-bottom:14px;" onclick="_renderSpCursos()">'
+      + '<i class="ti ti-arrow-left"></i> Volver</button>'
+      + '<div style="font-size:15px;font-weight:700;margin-bottom:12px;color:' + c.color + ';">'
+      + '<i class="ti ti-book" style="margin-right:6px;"></i>' + c.nombre_curso + '</div>';
+    if (!c.grupos.length) {
+      html += '<div class="modal-empty">Sin grupos pendientes.</div>';
+    } else {
+      c.grupos.forEach(function(g){
+        html += '<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;">'
+          + '<div style="font-weight:700;font-size:13px;margin-bottom:6px;">'
+          + 'Grupo ' + g.nombre + ' &middot; Mesa ' + g.num_mesa + ' — ' + g.ubicacion + '</div>';
+        if (!g.integrantes.length) {
+          html += '<div style="font-size:12px;color:var(--muted);">Sin integrantes asignados.</div>';
+        } else {
+          html += '<ul style="margin:0;padding-left:18px;font-size:13px;">';
+          g.integrantes.forEach(function(m){
+            html += '<li>' + (m.es_lider ? '<i class="ti ti-crown" style="color:#d97706;font-size:11px;margin-right:4px;"></i>' : '')
+              + m.apellido + ', ' + m.nombre + (m.es_lider ? ' <span style="font-size:11px;color:#d97706;">(Líder)</span>' : '') + '</li>';
+          });
+          html += '</ul>';
+        }
+        html += '</div>';
+      });
+    }
+    body.innerHTML = html;
+  }
 </script>
 {% endblock %}

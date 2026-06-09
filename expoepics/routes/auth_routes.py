@@ -141,6 +141,19 @@ def cambiar_pass():
     return render_template('cambiar_pass.html', forzado=forzado, error=error)
 
 
+@auth_bp.route('/cambiar-evento', methods=['POST'])
+def cambiar_evento():
+    if 'id_persona' not in session:
+        return redirect(url_for('auth.login'))
+    id_evento = request.form.get('id_evento', type=int)
+    if id_evento:
+        session['id_evento_vista'] = id_evento
+    next_url = request.form.get('next', '/')
+    if not next_url.startswith('/'):
+        next_url = '/'
+    return redirect(next_url)
+
+
 @auth_bp.route('/logout')
 def logout():
     session.clear()

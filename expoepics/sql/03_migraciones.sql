@@ -213,6 +213,31 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 -- ────────────────────────────────────────────────────────────
+-- MIGRACIÓN 10: Columna es_activo en tabla evento
+-- Marca cuál evento es el activo globalmente. Cuando se crea una
+-- nueva ExpoEpics, esta columna se actualiza para que todos los
+-- portales apunten al nuevo evento por defecto.
+-- ────────────────────────────────────────────────────────────
+SET @col_activo = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = 'ExpoEpics'
+    AND TABLE_NAME   = 'evento'
+    AND COLUMN_NAME  = 'es_activo'
+);
+SET @sql_activo = IF(@col_activo = 0,
+  'ALTER TABLE evento ADD COLUMN es_activo TINYINT(1) NOT NULL DEFAULT 0',
+  'SELECT "columna es_activo ya existe" AS info'
+);
+PREPARE stmt FROM @sql_activo;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Marcar el evento más reciente como activo (solo si ninguno lo está)
+UPDATE evento SET es_activo = 1
+WHERE id_evento = (SELECT id_evento FROM (SELECT id_evento FROM evento ORDER BY fecha DESC LIMIT 1) t)
+  AND NOT EXISTS (SELECT 1 FROM (SELECT id_evento FROM evento WHERE es_activo = 1 LIMIT 1) a);
+
+-- ────────────────────────────────────────────────────────────
 -- FIN DE MIGRACIONES
 -- ────────────────────────────────────────────────────────────
 -- Para futuras modificaciones al schema, agregar aquí un nuevo

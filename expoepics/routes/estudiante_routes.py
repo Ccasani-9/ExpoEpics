@@ -8,6 +8,16 @@ estudiante_bp = Blueprint('estudiante', __name__, url_prefix='/estudiante')
 
 
 def _get_grupo_y_evento(id_estudiante):
+    id_vista = session.get('id_evento_vista')
+    if id_vista:
+        eg = query(
+            "SELECT eg.id_grupo, g.id_evento, g.id_lider, g.estado AS estado_grupo "
+            "FROM estudiante_grupo eg JOIN grupo g ON eg.id_grupo=g.id_grupo "
+            "WHERE eg.id_estudiante=%s AND g.id_evento=%s LIMIT 1",
+            (id_estudiante, id_vista), fetch_one=True)
+        if eg:
+            evento = query("SELECT * FROM evento WHERE id_evento=%s", (eg['id_evento'],), fetch_one=True)
+            return eg, evento
     eg = query(
         "SELECT eg.id_grupo, g.id_evento, g.id_lider, g.estado AS estado_grupo "
         "FROM estudiante_grupo eg JOIN grupo g ON eg.id_grupo=g.id_grupo "
@@ -68,7 +78,7 @@ def proyecto():
         dias_restantes = (evento['fecha'] - hoy).days
         puede_editar   = es_lider and dias_restantes > 3
 
-    tecnologias = [t.strip() for t in (proy['tecnologias_usadas'] if proy else '').split(',') if t.strip()] if proy else []
+    tecnologias = [t.strip() for t in (proy['tecnologias_usadas'] or '').split(',') if t.strip()] if proy else []
 
     return render_template('estudiante/proyecto.html',
                            proyecto=proy, grupo=eg, evento=evento,

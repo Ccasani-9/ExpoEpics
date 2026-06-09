@@ -8,7 +8,12 @@ juez_bp = Blueprint('juez', __name__, url_prefix='/juez')
 
 
 def _get_evento():
-    return query("SELECT * FROM evento ORDER BY fecha DESC LIMIT 1", fetch_one=True)
+    id_vista = session.get('id_evento_vista')
+    if id_vista:
+        evt = query("SELECT * FROM evento WHERE id_evento=%s", (id_vista,), fetch_one=True)
+        if evt:
+            return evt
+    return query("SELECT * FROM evento WHERE es_activo=1 LIMIT 1", fetch_one=True)
 
 
 @juez_bp.route('/proyectos')

@@ -179,14 +179,40 @@
     <header class="topbar">
       <h1 class="page-title">{% block page_title %}ExpoEpics{% endblock %}</h1>
       <div class="topbar-actions">
-        <span class="badge badge-blue" style="font-size:12px; padding:5px 10px;">
-          <i class="ti ti-calendar-event"></i>
-          {% if g_evento %}
-            ExpoEpics {{ g_evento.edicion }}° Edición — {{ g_evento.semestre }} ({{ g_evento.anio }})
-          {% else %}
-            ExpoEpics
-          {% endif %}
-        </span>
+        {% if g_todos_eventos %}
+        <div class="expo-selector" id="expo-selector">
+          <button type="button" class="expo-selector-btn badge badge-blue" onclick="toggleExpoMenu(event)"
+                  style="font-size:12px; padding:5px 12px; border:none; cursor:pointer; display:flex; align-items:center; gap:6px; font-family:inherit; font-weight:600;">
+            <i class="ti ti-calendar-event"></i>
+            <span id="expo-selector-label">
+              {% if g_evento %}
+                ExpoEpics {{ g_evento.edicion }}° Edición — {{ g_evento.semestre }} ({{ g_evento.anio }})
+              {% else %}ExpoEpics{% endif %}
+            </span>
+            <i class="ti ti-chevron-down" style="font-size:10px; opacity:.7;"></i>
+          </button>
+          <div class="expo-selector-menu" id="expo-selector-menu" style="display:none;">
+            <div style="padding:8px 14px 6px; font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.05em;">
+              Ediciones disponibles
+            </div>
+            {% for e in g_todos_eventos %}
+            <form method="POST" action="{{ url_for('auth.cambiar_evento') }}" style="margin:0;">
+              <input type="hidden" name="next" value="{{ request.path }}">
+              <input type="hidden" name="id_evento" value="{{ e.id_evento }}">
+              <button type="submit" class="expo-menu-item {% if g_evento and e.id_evento == g_evento.id_evento %}expo-menu-item--active{% endif %}">
+                <span style="display:flex; align-items:center; gap:8px; flex:1;">
+                  <span class="expo-menu-dot {% if e.es_activo %}expo-menu-dot--activo{% endif %}"></span>
+                  ExpoEpics {{ e.edicion }}° Edición — {{ e.semestre }} ({{ e.anio }})
+                </span>
+                {% if g_evento and e.id_evento == g_evento.id_evento %}
+                <i class="ti ti-check" style="color:var(--primary); font-size:13px;"></i>
+                {% endif %}
+              </button>
+            </form>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
         <a href="{{ url_for('auth.logout') }}" class="btn btn-outline btn-sm">
           <i class="ti ti-logout"></i> Salir
         </a>
@@ -210,5 +236,42 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 {% block extra_js %}{% endblock %}
+
+<style>
+.expo-selector { position: relative; display: inline-block; }
+.expo-selector-btn { border-radius: 20px !important; }
+.expo-selector-menu {
+  position: absolute; right: 0; top: calc(100% + 8px);
+  background: var(--bg-primary); border: 1px solid var(--border);
+  border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.14);
+  min-width: 280px; z-index: 300; overflow: hidden;
+}
+.expo-menu-item {
+  width: 100%; display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px; background: transparent; border: none;
+  cursor: pointer; font-size: 13px; font-family: inherit;
+  color: var(--text-primary); text-align: left;
+  transition: background .12s;
+}
+.expo-menu-item:hover { background: var(--bg-secondary); }
+.expo-menu-item--active { background: var(--bg-secondary); font-weight: 600; }
+.expo-menu-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  background: var(--border);
+}
+.expo-menu-dot--activo { background: var(--success); }
+</style>
+
+<script>
+function toggleExpoMenu(e) {
+  e.stopPropagation();
+  var menu = document.getElementById('expo-selector-menu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', function() {
+  var menu = document.getElementById('expo-selector-menu');
+  if (menu) menu.style.display = 'none';
+});
+</script>
 </body>
 </html>

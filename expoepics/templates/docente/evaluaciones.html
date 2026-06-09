@@ -9,22 +9,26 @@
 
 <!-- Tarjetas de contador -->
 <div class="metrics-grid" style="margin-bottom:24px;">
-  <div class="metric-card" style="border-left:4px solid var(--success);">
+  <div class="metric-card mc-light mc-eval-green">
+    <i class="ti ti-circle-check mc-icon"></i>
     <div class="metric-label">Revisados</div>
-    <div class="metric-value" style="color:var(--success);">{{ finalizadas }}</div>
+    <div class="metric-value">{{ finalizadas }}</div>
     <div class="metric-sub">Evaluaciones finalizadas</div>
   </div>
-  <div class="metric-card" style="border-left:4px solid var(--danger);">
+  <div class="metric-card mc-light mc-eval-red">
+    <i class="ti ti-alert-circle mc-icon"></i>
     <div class="metric-label">Sin evaluar</div>
-    <div class="metric-value" style="color:var(--danger);">{{ sin_evaluar }}</div>
+    <div class="metric-value">{{ sin_evaluar }}</div>
     <div class="metric-sub">Proyectos sin evaluación</div>
   </div>
-  <div class="metric-card" style="border-left:4px solid var(--warn);">
+  <div class="metric-card mc-light mc-eval-amber">
+    <i class="ti ti-pencil mc-icon"></i>
     <div class="metric-label">En borrador</div>
-    <div class="metric-value" style="color:var(--warn);">{{ borradores }}</div>
+    <div class="metric-value">{{ borradores }}</div>
     <div class="metric-sub">Evaluaciones no finalizadas</div>
   </div>
-  <div class="metric-card" style="border-left:4px solid var(--blue);">
+  <div class="metric-card mc-light mc-sky1">
+    <i class="ti ti-chart-bar mc-icon"></i>
     <div class="metric-label">Total evaluaciones</div>
     <div class="metric-value">{{ evaluaciones | length }}</div>
     <div class="metric-sub">Registradas en el evento</div>

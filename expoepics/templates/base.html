@@ -179,39 +179,44 @@
     <header class="topbar">
       <h1 class="page-title">{% block page_title %}ExpoEpics{% endblock %}</h1>
       <div class="topbar-actions">
-        {% if g_todos_eventos %}
-        <div class="expo-selector" id="expo-selector">
-          <button type="button" class="expo-selector-btn badge badge-blue" onclick="toggleExpoMenu(event)"
-                  style="font-size:12px; padding:5px 12px; border:none; cursor:pointer; display:flex; align-items:center; gap:6px; font-family:inherit; font-weight:600;">
+        {% if g_evento %}
+          {% if session.get('role') == 'estudiante' %}
+          <span class="badge badge-blue" style="font-size:12px; padding:5px 12px; display:flex; align-items:center; gap:6px; font-weight:600;">
             <i class="ti ti-calendar-event"></i>
-            <span id="expo-selector-label">
-              {% if g_evento %}
+            ExpoEpics {{ g_evento.edicion }}° Edición — {{ g_evento.semestre }} ({{ g_evento.anio }})
+          </span>
+          {% elif g_todos_eventos %}
+          <div class="expo-selector" id="expo-selector">
+            <button type="button" class="expo-selector-btn badge badge-blue" onclick="toggleExpoMenu(event)"
+                    style="font-size:12px; padding:5px 12px; border:none; cursor:pointer; display:flex; align-items:center; gap:6px; font-family:inherit; font-weight:600;">
+              <i class="ti ti-calendar-event"></i>
+              <span id="expo-selector-label">
                 ExpoEpics {{ g_evento.edicion }}° Edición — {{ g_evento.semestre }} ({{ g_evento.anio }})
-              {% else %}ExpoEpics{% endif %}
-            </span>
-            <i class="ti ti-chevron-down" style="font-size:10px; opacity:.7;"></i>
-          </button>
-          <div class="expo-selector-menu" id="expo-selector-menu" style="display:none;">
-            <div style="padding:8px 14px 6px; font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.05em;">
-              Ediciones disponibles
+              </span>
+              <i class="ti ti-chevron-down" style="font-size:10px; opacity:.7;"></i>
+            </button>
+            <div class="expo-selector-menu" id="expo-selector-menu" style="display:none;">
+              <div style="padding:8px 14px 6px; font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.05em;">
+                Ediciones disponibles
+              </div>
+              {% for e in g_todos_eventos %}
+              <form method="POST" action="{{ url_for('auth.cambiar_evento') }}" style="margin:0;">
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <input type="hidden" name="id_evento" value="{{ e.id_evento }}">
+                <button type="submit" class="expo-menu-item {% if g_evento and e.id_evento == g_evento.id_evento %}expo-menu-item--active{% endif %}">
+                  <span style="display:flex; align-items:center; gap:8px; flex:1;">
+                    <span class="expo-menu-dot {% if e.es_activo %}expo-menu-dot--activo{% endif %}"></span>
+                    ExpoEpics {{ e.edicion }}° Edición — {{ e.semestre }} ({{ e.anio }})
+                  </span>
+                  {% if g_evento and e.id_evento == g_evento.id_evento %}
+                  <i class="ti ti-check" style="color:var(--primary); font-size:13px;"></i>
+                  {% endif %}
+                </button>
+              </form>
+              {% endfor %}
             </div>
-            {% for e in g_todos_eventos %}
-            <form method="POST" action="{{ url_for('auth.cambiar_evento') }}" style="margin:0;">
-              <input type="hidden" name="next" value="{{ request.path }}">
-              <input type="hidden" name="id_evento" value="{{ e.id_evento }}">
-              <button type="submit" class="expo-menu-item {% if g_evento and e.id_evento == g_evento.id_evento %}expo-menu-item--active{% endif %}">
-                <span style="display:flex; align-items:center; gap:8px; flex:1;">
-                  <span class="expo-menu-dot {% if e.es_activo %}expo-menu-dot--activo{% endif %}"></span>
-                  ExpoEpics {{ e.edicion }}° Edición — {{ e.semestre }} ({{ e.anio }})
-                </span>
-                {% if g_evento and e.id_evento == g_evento.id_evento %}
-                <i class="ti ti-check" style="color:var(--primary); font-size:13px;"></i>
-                {% endif %}
-              </button>
-            </form>
-            {% endfor %}
           </div>
-        </div>
+          {% endif %}
         {% endif %}
         <a href="{{ url_for('auth.logout') }}" class="btn btn-outline btn-sm">
           <i class="ti ti-logout"></i> Salir

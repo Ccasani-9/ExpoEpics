@@ -9,19 +9,19 @@
 
 <!-- Métricas -->
 <div class="metrics-grid">
-  <div class="metric-card mc-colored mc-green">
+  <div class="metric-card mc-light mc-sky5">
     <i class="ti ti-table-off mc-icon"></i>
     <div class="metric-label">Mesas libres</div>
     <div class="metric-value">{{ mesas_libres }}</div>
     <div class="metric-sub">Sin grupo asignado</div>
   </div>
-  <div class="metric-card mc-colored mc-pink metric-card-clickable" onclick="abrirModalMesas()" style="cursor:pointer;">
+  <div class="metric-card mc-light mc-sky1 metric-card-clickable" onclick="abrirModalMesas()" style="cursor:pointer;">
     <i class="ti ti-table-filled mc-icon"></i>
     <div class="metric-label">Mesas ocupadas</div>
     <div class="metric-value">{{ total_mesas - mesas_libres }}</div>
     <div class="metric-sub">Con grupo asignado <i class="ti ti-chart-pie" style="font-size:11px;opacity:.7;"></i></div>
   </div>
-  <div class="metric-card mc-colored mc-gold metric-card-clickable" onclick="irTareasPendientes()" style="cursor:pointer;">
+  <div class="metric-card mc-light mc-sky4 metric-card-clickable" onclick="irTareasPendientes()" style="cursor:pointer;">
     <i class="ti ti-checklist mc-icon"></i>
     <div class="metric-label">% Tareas completadas</div>
     {% set pct = ((conteos.Completado / conteos.Total) * 100) | round(0) | int if conteos.Total > 0 else 0 %}

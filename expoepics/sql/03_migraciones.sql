@@ -238,6 +238,67 @@ WHERE id_evento = (SELECT id_evento FROM (SELECT id_evento FROM evento ORDER BY 
   AND NOT EXISTS (SELECT 1 FROM (SELECT id_evento FROM evento WHERE es_activo = 1 LIMIT 1) a);
 
 -- ────────────────────────────────────────────────────────────
+-- MIGRACIÓN 11: Columna id_evento en inscripcion_curso
+-- Sin este campo los alumnos de ediciones anteriores aparecen
+-- en la nueva ExpoEpics automáticamente. Con id_evento cada
+-- inscripción queda ligada a una edición específica.
+-- ────────────────────────────────────────────────────────────
+SET @col_ic_ev = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = 'ExpoEpics'
+    AND TABLE_NAME   = 'inscripcion_curso'
+    AND COLUMN_NAME  = 'id_evento'
+);
+SET @sql_ic_ev = IF(@col_ic_ev = 0,
+  'ALTER TABLE inscripcion_curso ADD COLUMN id_evento INT NULL AFTER id_curso',
+  'SELECT "columna id_evento ya existe en inscripcion_curso" AS info'
+);
+PREPARE stmt FROM @sql_ic_ev; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Poblar filas existentes con el evento activo
+UPDATE inscripcion_curso
+SET id_evento = (SELECT id_evento FROM evento WHERE es_activo = 1 LIMIT 1)
+WHERE id_evento IS NULL;
+
+-- Hacer NOT NULL
+SET @col_ic_ev2 = (
+  SELECT IS_NULLABLE FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = 'ExpoEpics'
+    AND TABLE_NAME   = 'inscripcion_curso'
+    AND COLUMN_NAME  = 'id_evento'
+);
+SET @sql_ic_nn = IF(@col_ic_ev2 = 'YES',
+  'ALTER TABLE inscripcion_curso MODIFY id_evento INT NOT NULL',
+  'SELECT "id_evento ya es NOT NULL" AS info'
+);
+PREPARE stmt FROM @sql_ic_nn; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Reemplazar unique constraint (id_estudiante, id_curso) por (id_estudiante, id_curso, id_evento)
+SET @idx_old = (
+  SELECT COUNT(*) FROM information_schema.STATISTICS
+  WHERE TABLE_SCHEMA = 'ExpoEpics'
+    AND TABLE_NAME   = 'inscripcion_curso'
+    AND INDEX_NAME   = 'uq_est_curso'
+);
+SET @sql_drop_idx = IF(@idx_old > 0,
+  'ALTER TABLE inscripcion_curso DROP INDEX uq_est_curso',
+  'SELECT "indice uq_est_curso no existe" AS info'
+);
+PREPARE stmt FROM @sql_drop_idx; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_new = (
+  SELECT COUNT(*) FROM information_schema.STATISTICS
+  WHERE TABLE_SCHEMA = 'ExpoEpics'
+    AND TABLE_NAME   = 'inscripcion_curso'
+    AND INDEX_NAME   = 'uq_est_curso_evento'
+);
+SET @sql_add_idx = IF(@idx_new = 0,
+  'ALTER TABLE inscripcion_curso ADD UNIQUE KEY uq_est_curso_evento (id_estudiante, id_curso, id_evento)',
+  'SELECT "indice uq_est_curso_evento ya existe" AS info'
+);
+PREPARE stmt FROM @sql_add_idx; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- ────────────────────────────────────────────────────────────
 -- FIN DE MIGRACIONES
 -- ────────────────────────────────────────────────────────────
 -- Para futuras modificaciones al schema, agregar aquí un nuevo

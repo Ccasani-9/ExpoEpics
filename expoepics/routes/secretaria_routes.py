@@ -368,9 +368,10 @@ def asistencia():
         "JOIN persona per   ON es.id_persona   = per.id_persona "
         "LEFT JOIN participacion pa "
         "       ON pa.id_estudiante = es.id_estudiante AND pa.id_evento = %s "
-        "WHERE c.id_curso IN (SELECT DISTINCT id_curso FROM grupo WHERE id_evento = %s) "
+        "WHERE ic.id_evento = %s "
+        "AND c.id_curso IN (SELECT DISTINCT id_curso FROM grupo WHERE id_evento = %s) "
         "ORDER BY c.nombre, per.apellido, per.nombre",
-        (id_evento, id_evento))
+        (id_evento, id_evento, id_evento))
 
     cursos = {}
     for r in rows:
@@ -502,9 +503,10 @@ def complementos():
         "JOIN inscripcion_curso ic ON ic.id_estudiante  = es.id_estudiante "
         "JOIN curso c              ON ic.id_curso       = c.id_curso "
         "WHERE pa.id_evento = %s AND pa.asistencia = 1 "
+        "  AND ic.id_evento = %s "
         "  AND c.id_curso IN (SELECT DISTINCT id_curso FROM grupo WHERE id_evento = %s) "
         "ORDER BY c.nombre, per.apellido, per.nombre",
-        (id_evento, id_evento))
+        (id_evento, id_evento, id_evento))
 
     cursos = {}
     for r in rows:
@@ -553,7 +555,7 @@ def complementos_marcar_todos():
 
     query(
         "UPDATE participacion pa "
-        "JOIN inscripcion_curso ic ON ic.id_estudiante = pa.id_estudiante "
+        "JOIN inscripcion_curso ic ON ic.id_estudiante = pa.id_estudiante AND ic.id_evento = pa.id_evento "
         "SET pa.recibio_complemento = 1 "
         "WHERE pa.id_evento = %s AND pa.asistencia = 1 AND ic.id_curso = %s",
         (id_evento, id_curso), commit=True)
@@ -576,7 +578,7 @@ def diplomas():
         "FROM participacion pa "
         "JOIN estudiante es  ON pa.id_estudiante = es.id_estudiante "
         "JOIN persona per    ON es.id_persona    = per.id_persona "
-        "JOIN inscripcion_curso ic ON ic.id_estudiante = es.id_estudiante "
+        "JOIN inscripcion_curso ic ON ic.id_estudiante = es.id_estudiante AND ic.id_evento = pa.id_evento "
         "JOIN curso c            ON ic.id_curso = c.id_curso "
         "WHERE pa.id_evento = %s AND pa.asistencia = 1 "
         "  AND c.id_curso IN (SELECT DISTINCT id_curso FROM grupo WHERE id_evento = %s) "

@@ -615,39 +615,84 @@ textarea { resize: vertical; min-height: 90px; }
 
 /* ── LOGIN PAGE ── */
 body.login-page {
-  background: linear-gradient(135deg, var(--navy) 0%, #1e3a8a 100%);
+  margin: 0; padding: 0;
+  background: #fff;
+  min-height: 100vh;
+  display: block;
+}
+.login-split {
   display: flex;
+  min-height: 100vh;
+}
+.login-hero {
+  flex: 1;
+  background: linear-gradient(135deg, rgba(15,23,42,.90) 0%, rgba(30,58,138,.92) 100%),
+              url('/static/img/usmp_logo.jpg') center/cover no-repeat;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
-  padding: 20px;
+  padding: 60px 48px;
 }
-.login-container {
-  width: 100%;
-  max-width: 440px;
-}
-.login-brand {
-  text-align: center;
-  margin-bottom: 28px;
-}
-.login-logo {
-  font-size: 36px;
+.login-hero-logo {
+  font-size: 56px;
   font-weight: 800;
   color: #fff;
-  letter-spacing: -1px;
+  letter-spacing: -1.5px;
+  margin-bottom: 16px;
+  text-align: center;
 }
-.login-logo span { color: var(--accent); }
-.login-tagline {
-  color: rgba(255,255,255,.55);
-  font-size: 13px;
-  margin-top: 4px;
+.login-hero-logo span { color: var(--accent); }
+.login-hero-tagline {
+  color: rgba(255,255,255,.65);
+  font-size: 15.5px;
+  text-align: center;
+  line-height: 1.75;
+  max-width: 360px;
+  margin-bottom: 36px;
 }
-.login-card {
+.login-hero-badge {
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 10px;
+  padding: 13px 30px;
+  color: rgba(255,255,255,.75);
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: .02em;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.login-panel {
+  width: 510px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 52px 60px;
   background: #fff;
-  border-radius: 16px;
-  padding: 30px;
-  box-shadow: 0 20px 60px rgba(0,0,0,.3);
+  overflow-y: auto;
+  box-shadow: -4px 0 24px rgba(0,0,0,.06);
 }
+.login-panel-head {
+  width: 100%;
+  margin-bottom: 28px;
+  text-align: center;
+}
+.login-panel-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.login-panel-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+.login-form-wrap { width: 100%; }
 .login-tabs {
   display: flex;
   gap: 4px;
@@ -658,7 +703,7 @@ body.login-page {
 }
 .tab-btn {
   flex: 1;
-  padding: 8px 6px;
+  padding: 9px 6px;
   border: none;
   border-radius: 7px;
   background: transparent;
@@ -712,6 +757,10 @@ body.login-page {
   font-family: monospace;
 }
 .hidden { display: none !important; }
+@media (max-width: 860px) {
+  .login-hero { display: none; }
+  .login-panel { width: 100%; padding: 40px 28px; min-height: 100vh; justify-content: flex-start; padding-top: 60px; }
+}
 
 /* ── CAMBIAR PASS PAGE ── */
 body.pass-page {
@@ -797,7 +846,7 @@ body.pass-page {
   transform: translateY(-2px);
 }
 
-/* ── COLORED METRIC CARDS ── */
+/* ── COLORED METRIC CARDS (legacy, kept for compatibility) ── */
 .metric-card.mc-colored {
   border: none;
   position: relative;
@@ -825,6 +874,118 @@ body.pass-page {
 .metric-card.mc-colored.metric-card-clickable:hover {
   box-shadow: 0 14px 36px rgba(0,0,0,.22);
   transform: translateY(-3px);
+}
+
+/* ── LIGHT BLUE/WHITE METRIC CARDS ── */
+.metric-card.mc-light {
+  background: #fff;
+  border: 1.5px solid #e0f2fe;
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(14,165,233,.08);
+}
+.metric-card.mc-light .metric-label { color: #475569; font-size: 13px; font-weight: 500; }
+.metric-card.mc-light .metric-value { color: #0f172a; }
+.metric-card.mc-light .metric-sub   { color: #94a3b8; font-size: 12px; }
+.metric-card.mc-light .mc-icon {
+  position: absolute;
+  right: 14px; top: 14px;
+  font-size: 56px;
+  opacity: 0.10;
+  line-height: 1;
+  pointer-events: none;
+}
+.metric-card.mc-light .progress-bar-bg   { background: #e0f2fe; }
+.metric-card.mc-light .progress-bar-fill { background: #0ea5e9; }
+.metric-card.mc-light.metric-card-clickable:hover {
+  box-shadow: 0 8px 24px rgba(0,0,0,.10);
+  transform: translateY(-2px);
+}
+
+/* Variantes de acento (borde superior) — colores suaves y distintos */
+.metric-card.mc-sky1 { border-top: 3px solid #3b82f6; }
+.metric-card.mc-sky1 .mc-icon { color: #3b82f6; }
+.metric-card.mc-sky2 { border-top: 3px solid #8b5cf6; }
+.metric-card.mc-sky2 .mc-icon { color: #8b5cf6; }
+.metric-card.mc-sky3 { border-top: 3px solid #14b8a6; }
+.metric-card.mc-sky3 .mc-icon { color: #14b8a6; }
+.metric-card.mc-sky4 { border-top: 3px solid #f59e0b; }
+.metric-card.mc-sky4 .mc-icon { color: #f59e0b; }
+.metric-card.mc-sky5 { border-top: 3px solid #22c55e; }
+.metric-card.mc-sky5 .mc-icon { color: #22c55e; }
+/* Variantes semánticas para páginas de evaluación */
+.metric-card.mc-eval-green { border-top: 3px solid #16a34a; }
+.metric-card.mc-eval-green .mc-icon { color: #16a34a; }
+.metric-card.mc-eval-red   { border-top: 3px solid #ef4444; }
+.metric-card.mc-eval-red .mc-icon   { color: #ef4444; }
+.metric-card.mc-eval-amber { border-top: 3px solid #d97706; }
+.metric-card.mc-eval-amber .mc-icon { color: #d97706; }
+
+/* ── REGISTRO ESTUDIANTES — MÓDULOS ESTILO CENERIS ── */
+.reg-module-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.reg-module-card {
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-top: 4px solid transparent;
+  border-radius: 16px;
+  padding: 38px 28px 32px;
+  text-align: center;
+  text-decoration: none;
+  color: var(--text);
+  display: block;
+  transition: box-shadow .18s, transform .18s;
+}
+.reg-module-card:hover {
+  transform: translateY(-3px);
+}
+.reg-module-card.reg-mod-disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.reg-mod-blue  { border-top-color: #3b82f6; }
+.reg-mod-blue:hover  { box-shadow: 0 8px 28px rgba(59,130,246,.16); }
+.reg-mod-green { border-top-color: #16a34a; }
+.reg-mod-green:hover { box-shadow: 0 8px 28px rgba(22,163,74,.16); }
+.reg-mod-icon {
+  width: 76px; height: 76px;
+  border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 22px;
+  font-size: 36px;
+}
+.reg-mod-blue  .reg-mod-icon { background: #eff6ff; color: #3b82f6; }
+.reg-mod-green .reg-mod-icon { background: #f0fdf4; color: #16a34a; }
+.reg-mod-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+.reg-mod-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.65;
+  margin-bottom: 18px;
+}
+.reg-mod-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 20px;
+}
+.reg-mod-blue  .reg-mod-badge { background: #eff6ff; color: #3b82f6; }
+.reg-mod-green .reg-mod-badge { background: #f0fdf4; color: #16a34a; }
+@media (max-width: 600px) {
+  .reg-module-grid { grid-template-columns: 1fr; }
 }
 
 /* ── MODALS ── */

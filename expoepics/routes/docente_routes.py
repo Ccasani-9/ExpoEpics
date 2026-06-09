@@ -105,12 +105,12 @@ def dashboard():
         "WHERE g.id_evento = %s AND c.id_docente = %s",
         (id_evento, id_docente), fetch_one=True)['cnt']
 
-    # Total de estudiantes registrados en los cursos de este docente
+    # Total de estudiantes registrados en los cursos de este docente (evento actual)
     total_registrados = query(
         "SELECT COUNT(*) AS cnt FROM inscripcion_curso ic "
         "JOIN curso c ON ic.id_curso = c.id_curso "
-        "WHERE c.id_docente = %s",
-        (id_docente,), fetch_one=True)['cnt']
+        "WHERE c.id_docente = %s AND ic.id_evento = %s",
+        (id_docente, id_evento), fetch_one=True)['cnt']
 
     metricas['participantes'] = est_docente
     metricas['grupos']        = grp_docente
@@ -508,8 +508,8 @@ def api_organizar_grupos():
         "FROM inscripcion_curso ic "
         "JOIN estudiante es ON ic.id_estudiante = es.id_estudiante "
         "JOIN persona p ON es.id_persona = p.id_persona "
-        "WHERE ic.id_curso = %s ORDER BY p.apellido, p.nombre",
-        (id_curso,))
+        "WHERE ic.id_curso = %s AND ic.id_evento = %s ORDER BY p.apellido, p.nombre",
+        (id_curso, id_evento))
 
     en_grupo = query(
         "SELECT eg.id_estudiante FROM estudiante_grupo eg "
@@ -666,8 +666,8 @@ def mover_estudiante():
 
     en_curso = query(
         "SELECT id_inscripcion FROM inscripcion_curso "
-        "WHERE id_estudiante=%s AND id_curso=%s",
-        (id_estudiante, id_curso), fetch_one=True)
+        "WHERE id_estudiante=%s AND id_curso=%s AND id_evento=%s",
+        (id_estudiante, id_curso, evento['id_evento']), fetch_one=True)
     if not en_curso:
         return jsonify({'error': 'Estudiante no pertenece a este curso'}), 403
 
@@ -747,15 +747,18 @@ def ingresar_estudiantes():
         flash('Curso no válido.', 'danger')
         return redirect(url_for('docente.registro_estudiantes'))
 
+    evento = _get_evento()
+    id_evento_actual = evento['id_evento'] if evento else None
+
     estudiantes = query(
         "SELECT ic.id_inscripcion, p.dni, p.nombre, p.apellido, p.correo, "
         "es.ciclo, es.id_estudiante "
         "FROM inscripcion_curso ic "
         "JOIN estudiante es ON ic.id_estudiante = es.id_estudiante "
         "JOIN persona p ON es.id_persona = p.id_persona "
-        "WHERE ic.id_curso = %s "
+        "WHERE ic.id_curso = %s AND ic.id_evento = %s "
         "ORDER BY p.apellido, p.nombre",
-        (id_curso,))
+        (id_curso, id_evento_actual))
 
     return render_template('docente/ingresar_estudiantes.html',
                            cursos=cursos,
@@ -820,16 +823,22 @@ def agregar_estudiante():
                     (id_persona,), fetch_one=True)
         id_estudiante = est['id_estudiante']
 
+    evento = _get_evento()
+    if not evento:
+        flash('No hay un evento activo.', 'warning')
+        return redirect(url_for('docente.ingresar_estudiantes', curso=id_curso))
+    id_evento_actual = evento['id_evento']
+
     ya_inscrito = query(
         "SELECT id_inscripcion FROM inscripcion_curso "
-        "WHERE id_estudiante=%s AND id_curso=%s",
-        (id_estudiante, id_curso), fetch_one=True)
+        "WHERE id_estudiante=%s AND id_curso=%s AND id_evento=%s",
+        (id_estudiante, id_curso, id_evento_actual), fetch_one=True)
 
     if ya_inscrito:
         flash('El estudiante ya está registrado en este curso.', 'warning')
     else:
-        query("INSERT INTO inscripcion_curso (id_estudiante, id_curso) VALUES (%s,%s)",
-              (id_estudiante, id_curso), commit=True)
+        query("INSERT INTO inscripcion_curso (id_estudiante, id_curso, id_evento) VALUES (%s,%s,%s)",
+              (id_estudiante, id_curso, id_evento_actual), commit=True)
         flash(f'{nombre} {apellido} registrado exitosamente.', 'success')
 
     return redirect(url_for('docente.ingresar_estudiantes', curso=id_curso))
@@ -928,16 +937,19 @@ def importar_estudiantes():
                             (id_persona,), fetch_one=True)
                 id_estudiante = est['id_estudiante']
 
+            evento_imp = _get_evento()
+            id_evento_imp = evento_imp['id_evento'] if evento_imp else None
+
             ya_inscrito = query(
                 "SELECT id_inscripcion FROM inscripcion_curso "
-                "WHERE id_estudiante=%s AND id_curso=%s",
-                (id_estudiante, id_curso), fetch_one=True)
+                "WHERE id_estudiante=%s AND id_curso=%s AND id_evento=%s",
+                (id_estudiante, id_curso, id_evento_imp), fetch_one=True)
 
             if ya_inscrito:
                 ya_inscritos += 1
             else:
-                query("INSERT INTO inscripcion_curso (id_estudiante, id_curso) VALUES (%s,%s)",
-                      (id_estudiante, id_curso), commit=True)
+                query("INSERT INTO inscripcion_curso (id_estudiante, id_curso, id_evento) VALUES (%s,%s,%s)",
+                      (id_estudiante, id_curso, id_evento_imp), commit=True)
                 importados += 1
 
         except Exception:
@@ -965,7 +977,7 @@ def importar_estudiantes():
 @role_required('docente')
 def eliminar_estudiante(id_inscripcion):
     inscripcion = query(
-        "SELECT ic.id_inscripcion, ic.id_curso "
+        "SELECT ic.id_inscripcion, ic.id_curso, ic.id_estudiante, ic.id_evento "
         "FROM inscripcion_curso ic "
         "JOIN curso c ON ic.id_curso = c.id_curso "
         "WHERE ic.id_inscripcion=%s AND c.id_docente=%s",
@@ -975,7 +987,16 @@ def eliminar_estudiante(id_inscripcion):
         flash('Registro no encontrado.', 'danger')
         return redirect(url_for('docente.registro_estudiantes'))
 
-    id_curso = inscripcion['id_curso']
+    id_curso      = inscripcion['id_curso']
+    id_estudiante = inscripcion['id_estudiante']
+    id_evento     = inscripcion['id_evento']
+
+    # Quitar del grupo en este evento y curso
+    query(
+        "DELETE FROM estudiante_grupo WHERE id_estudiante=%s "
+        "AND id_grupo IN (SELECT id_grupo FROM grupo WHERE id_curso=%s AND id_evento=%s)",
+        (id_estudiante, id_curso, id_evento), commit=True)
+
     query("DELETE FROM inscripcion_curso WHERE id_inscripcion=%s",
           (id_inscripcion,), commit=True)
     flash('Estudiante eliminado del registro del curso.', 'success')

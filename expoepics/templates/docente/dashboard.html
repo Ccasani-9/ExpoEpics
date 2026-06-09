@@ -9,25 +9,25 @@
 
 <!-- Métricas -->
 <div class="metrics-grid">
-  <div class="metric-card mc-colored mc-pink metric-card-clickable" onclick="openDetailModal('estudiantes')">
+  <div class="metric-card mc-light mc-sky1 metric-card-clickable" onclick="openDetailModal('estudiantes')">
     <i class="ti ti-users mc-icon"></i>
     <div class="metric-label">Estudiantes inscritos</div>
     <div class="metric-value">{{ metricas.participantes }}</div>
     <div class="metric-sub">En el evento</div>
   </div>
-  <div class="metric-card mc-colored mc-purple metric-card-clickable" onclick="openDetailModal('grupos')">
+  <div class="metric-card mc-light mc-sky2 metric-card-clickable" onclick="openDetailModal('grupos')">
     <i class="ti ti-layout-grid mc-icon"></i>
     <div class="metric-label">Grupos participantes</div>
     <div class="metric-value">{{ metricas.grupos }}</div>
     <div class="metric-sub">Grupos totales</div>
   </div>
-  <div class="metric-card mc-colored mc-teal metric-card-clickable" onclick="openDetailModal('proyectos')">
+  <div class="metric-card mc-light mc-sky3 metric-card-clickable" onclick="openDetailModal('proyectos')">
     <i class="ti ti-folder mc-icon"></i>
     <div class="metric-label">Proyectos registrados</div>
     <div class="metric-value">{{ metricas.proyectos }}</div>
     <div class="metric-sub">Proyectos en el evento</div>
   </div>
-  <div class="metric-card mc-colored mc-gold metric-card-clickable" onclick="openSinProyecto(false)">
+  <div class="metric-card mc-light mc-sky4 metric-card-clickable" onclick="openSinProyecto(false)">
     <i class="ti ti-chart-bar mc-icon"></i>
     <div class="metric-label">% Inscripción de Proyectos</div>
     <div class="metric-value">{{ metricas.pct_proyectos }}%</div>
@@ -38,7 +38,7 @@
     </div>
   </div>
   {% if session.es_director %}
-  <div class="metric-card mc-colored mc-gold metric-card-clickable" style="opacity:.85;" onclick="openSinProyecto(true)">
+  <div class="metric-card mc-light mc-sky4 metric-card-clickable" style="opacity:.85;" onclick="openSinProyecto(true)">
     <i class="ti ti-world mc-icon"></i>
     <div class="metric-label">% Inscripción de Proyectos Global</div>
     <div class="metric-value">{{ metricas.pct_proyectos_global }}%</div>
@@ -49,7 +49,7 @@
     </div>
   </div>
   {% endif %}
-  <div class="metric-card mc-colored mc-green metric-card-clickable" onclick="abrirModalTareas('Todos')" style="cursor:pointer;">
+  <div class="metric-card mc-light mc-sky5 metric-card-clickable" onclick="abrirModalTareas('Todos')" style="cursor:pointer;">
     <i class="ti ti-checklist mc-icon"></i>
     <div class="metric-label">% Tareas completadas</div>
     <div class="metric-value">{{ metricas.pct_tareas }}%</div>

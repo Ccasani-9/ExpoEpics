@@ -84,6 +84,17 @@ INSERT INTO proyecto (id_grupo, nombre, descripcion, tecnologias_usadas, descrip
     'PHP para el backend, MySQL para datos, Bootstrap para la UI.',
     'Registrado', '');
 
+-- INSCRIPCION_CURSO (estudiantes inscritos en sus cursos para el evento)
+INSERT INTO inscripcion_curso (id_estudiante, id_curso, id_evento) VALUES
+(1, 1, 1),  -- Paul David Anampa    → Base de Datos
+(2, 1, 1),  -- Renzo Ccasani        → Base de Datos
+(3, 1, 1),  -- Anthony Mondalgo     → Base de Datos
+(8, 1, 1),  -- Diego Meza           → Base de Datos
+(5, 2, 1),  -- María López          → Prog. Orientada a Objetos
+(6, 2, 1),  -- Luis Castro          → Prog. Orientada a Objetos
+(4, 3, 1),  -- Jorge Alejandro Ortiz → Matemática Discreta
+(7, 3, 1);  -- Sofia Rios           → Matemática Discreta
+
 -- ESTUDIANTE_GRUPO
 INSERT INTO estudiante_grupo (id_estudiante, id_grupo) VALUES
 (1,1),(2,1),

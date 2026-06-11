@@ -299,6 +299,17 @@ SET @sql_add_idx = IF(@idx_new = 0,
 PREPARE stmt FROM @sql_add_idx; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ────────────────────────────────────────────────────────────
+-- MIGRACIÓN 11: Sincronizar inscripcion_curso desde estudiante_grupo
+-- Inserta en inscripcion_curso los estudiantes que están en un grupo
+-- del evento activo pero no tienen fila de inscripción para ese curso.
+-- Es seguro correrlo varias veces (INSERT IGNORE).
+-- ────────────────────────────────────────────────────────────
+INSERT IGNORE INTO inscripcion_curso (id_estudiante, id_curso, id_evento)
+SELECT DISTINCT eg.id_estudiante, g.id_curso, g.id_evento
+FROM estudiante_grupo eg
+JOIN grupo g ON eg.id_grupo = g.id_grupo;
+
+-- ────────────────────────────────────────────────────────────
 -- FIN DE MIGRACIONES
 -- ────────────────────────────────────────────────────────────
 -- Para futuras modificaciones al schema, agregar aquí un nuevo

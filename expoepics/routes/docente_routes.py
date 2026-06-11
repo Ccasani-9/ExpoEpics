@@ -1022,15 +1022,23 @@ def asistencia():
         "       es.id_estudiante, "
         "       COALESCE(pa.asistencia, 0) AS asistencia, "
         "       pa.firma "
-        "FROM inscripcion_curso ic "
-        "JOIN curso c        ON ic.id_curso       = c.id_curso "
-        "JOIN estudiante es  ON ic.id_estudiante  = es.id_estudiante "
-        "JOIN persona per    ON es.id_persona     = per.id_persona "
+        "FROM ( "
+        "    SELECT DISTINCT ic.id_estudiante, ic.id_curso "
+        "    FROM inscripcion_curso ic "
+        "    WHERE ic.id_curso IN (SELECT DISTINCT id_curso FROM grupo WHERE id_evento = %s) "
+        "    UNION "
+        "    SELECT DISTINCT eg.id_estudiante, g.id_curso "
+        "    FROM estudiante_grupo eg "
+        "    JOIN grupo g ON eg.id_grupo = g.id_grupo "
+        "    WHERE g.id_evento = %s "
+        ") fuente "
+        "JOIN curso c       ON fuente.id_curso      = c.id_curso "
+        "JOIN estudiante es ON fuente.id_estudiante = es.id_estudiante "
+        "JOIN persona per   ON es.id_persona        = per.id_persona "
         "LEFT JOIN participacion pa "
         "       ON pa.id_estudiante = es.id_estudiante AND pa.id_evento = %s "
-        "WHERE c.id_curso IN (SELECT DISTINCT id_curso FROM grupo WHERE id_evento = %s) "
         "ORDER BY c.nombre, per.apellido, per.nombre",
-        (id_evento, id_evento))
+        (id_evento, id_evento, id_evento))
 
     cursos = {}
     for r in rows:

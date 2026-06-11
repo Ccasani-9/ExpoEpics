@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+{% block title %}Admin Docentes{% endblock %}
+{% block page_title %}Gestión de Docentes{% endblock %}
+
+{% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}" style="margin-bottom:16px;">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+<!-- ── TABLA PERSONA ── -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="section-header" style="margin-bottom:16px;">
+    <div>
+      <div class="section-title">Tabla: persona</div>
+      <div class="section-subtitle">{{ personas|length }} registro{{ 's' if personas|length != 1 else '' }}</div>
+    </div>
+    <button class="btn btn-primary" onclick="document.getElementById('modal-add-persona').classList.add('open')">
+      <i class="ti ti-plus"></i> Agregar persona
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>DNI</th>
+          <th>Nombre</th>
+          <th>Apellido</th>
+          <th>Correo</th>
+          <th>Pass temporal</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in personas %}
+        <tr>
+          <td class="text-muted">{{ p.id_persona }}</td>
+          <td><code>{{ p.dni }}</code></td>
+          <td class="text-bold">{{ p.nombre }}</td>
+          <td>{{ p.apellido }}</td>
+          <td class="text-muted">{{ p.correo }}</td>
+          <td>
+            {% if p.contrasena_temporal %}
+              <span class="badge badge-warn">Sí</span>
+            {% else %}
+              <span class="badge badge-gray">No</span>
+            {% endif %}
+          </td>
+          <td>
+            <form method="POST"
+                  action="{{ url_for('admin_docentes.eliminar_persona', id_persona=p.id_persona) }}"
+                  data-confirm="¿Eliminar a {{ p.nombre }} {{ p.apellido }}? Esta acción no se puede deshacer.">
+              <button type="submit" class="btn btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger);">
+                <i class="ti ti-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-muted" style="text-align:center;padding:32px 0;">Sin registros.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── TABLA DOCENTE_EXPOEPICS ── -->
+<div class="card">
+  <div class="section-header" style="margin-bottom:16px;">
+    <div>
+      <div class="section-title">Tabla: docente_expoepics</div>
+      <div class="section-subtitle">{{ docentes|length }} registro{{ 's' if docentes|length != 1 else '' }}</div>
+    </div>
+    <button class="btn btn-primary" onclick="document.getElementById('modal-add-docente').classList.add('open')">
+      <i class="ti ti-plus"></i> Agregar docente
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID Docente</th>
+          <th>DNI</th>
+          <th>Nombre</th>
+          <th>Apellido</th>
+          <th>Correo</th>
+          <th>Director</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in docentes %}
+        <tr>
+          <td class="text-muted">{{ d.id_docente }}</td>
+          <td><code>{{ d.dni }}</code></td>
+          <td class="text-bold">{{ d.nombre }}</td>
+          <td>{{ d.apellido }}</td>
+          <td class="text-muted">{{ d.correo }}</td>
+          <td>
+            {% if d.es_director %}
+              <span class="badge badge-blue">Sí</span>
+            {% else %}
+              <span class="badge badge-gray">No</span>
+            {% endif %}
+          </td>
+          <td>
+            <form method="POST"
+                  action="{{ url_for('admin_docentes.eliminar_docente', id_docente=d.id_docente) }}"
+                  data-confirm="¿Eliminar a {{ d.nombre }} {{ d.apellido }} de docentes?">
+              <button type="submit" class="btn btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger);">
+                <i class="ti ti-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-muted" style="text-align:center;padding:32px 0;">Sin registros.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── MODAL: AGREGAR PERSONA ── -->
+<div class="modal-overlay" id="modal-add-persona"
+     onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-user-plus" style="margin-right:6px;color:var(--blue);"></i>Agregar persona</div>
+      <button class="modal-close" onclick="document.getElementById('modal-add-persona').classList.remove('open')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <form method="POST" action="{{ url_for('admin_docentes.agregar_persona') }}">
+        <div class="form-group">
+          <label>DNI (8 dígitos)</label>
+          <input type="text" name="dni" maxlength="8" placeholder="12345678" required>
+        </div>
+        <div class="form-group">
+          <label>Nombre</label>
+          <input type="text" name="nombre" placeholder="Juan" required>
+        </div>
+        <div class="form-group">
+          <label>Apellido</label>
+          <input type="text" name="apellido" placeholder="García López" required>
+        </div>
+        <div class="form-group">
+          <label>Correo</label>
+          <input type="email" name="correo" placeholder="usuario@usmp.edu.pe" required>
+        </div>
+        <div class="form-group">
+          <label>Contraseña inicial</label>
+          <input type="password" name="contrasena" placeholder="••••••••" required>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+          <button type="button" class="btn btn-outline"
+                  onclick="document.getElementById('modal-add-persona').classList.remove('open')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: AGREGAR DOCENTE ── -->
+<div class="modal-overlay" id="modal-add-docente"
+     onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-school" style="margin-right:6px;color:var(--blue);"></i>Agregar docente</div>
+      <button class="modal-close" onclick="document.getElementById('modal-add-docente').classList.remove('open')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <form method="POST" action="{{ url_for('admin_docentes.agregar_docente') }}">
+        <input type="hidden" name="id_persona" id="input-id-persona">
+        <div class="form-group" style="position:relative;">
+          <label>Persona</label>
+          <input type="text" id="buscador-persona" placeholder="Buscar por nombre o apellido..."
+                 autocomplete="off"
+                 oninput="filtrarPersonas()"
+                 onfocus="mostrarLista()"
+                 style="width:100%;">
+          <div id="lista-personas"
+               style="display:none;position:absolute;z-index:200;width:100%;max-height:180px;
+                      overflow-y:auto;background:#fff;border:1px solid #e2e8f0;
+                      border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);margin-top:2px;">
+          </div>
+          <div id="persona-seleccionada"
+               style="display:none;margin-top:6px;padding:6px 10px;background:var(--bg-light,#f1f5f9);
+                      border-radius:6px;font-size:13px;font-weight:600;color:var(--text-primary,#1e293b);">
+          </div>
+        </div>
+        <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" name="es_director" id="chk-director" style="width:auto;">
+          <label for="chk-director" style="margin:0;">Es director de ExpoEpics</label>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+          <button type="button" class="btn btn-outline"
+                  onclick="document.getElementById('modal-add-docente').classList.remove('open')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+
+      <script>
+        var _personas = [
+          {% for p in personas_disponibles %}
+          { id: {{ p.id_persona }}, texto: "{{ p.apellido }}, {{ p.nombre }}" }{% if not loop.last %},{% endif %}
+          {% endfor %}
+        ];
+
+        function filtrarPersonas() {
+          var q = document.getElementById('buscador-persona').value.toLowerCase();
+          var filtrados = q ? _personas.filter(function(p) { return p.texto.toLowerCase().includes(q); }) : _personas;
+          renderLista(filtrados);
+          document.getElementById('input-id-persona').value = '';
+          document.getElementById('persona-seleccionada').style.display = 'none';
+        }
+
+        function renderLista(lista) {
+          var div = document.getElementById('lista-personas');
+          if (!lista.length) {
+            div.innerHTML = '<div style="padding:10px 14px;color:#94a3b8;font-size:13px;">Sin resultados</div>';
+          } else {
+            div.innerHTML = lista.map(function(p) {
+              return '<div onclick="seleccionarPersona(' + p.id + ',\'' + p.texto.replace(/'/g, "\\'") + '\')" '
+                + 'style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9;" '
+                + 'onmouseover="this.style.background=\'#f1f5f9\'" onmouseout="this.style.background=\'\'"> '
+                + p.texto + '</div>';
+            }).join('');
+          }
+          div.style.display = 'block';
+        }
+
+        function mostrarLista() {
+          var q = document.getElementById('buscador-persona').value.toLowerCase();
+          var filtrados = q ? _personas.filter(function(p) { return p.texto.toLowerCase().includes(q); }) : _personas;
+          renderLista(filtrados);
+        }
+
+        function seleccionarPersona(id, texto) {
+          document.getElementById('input-id-persona').value = id;
+          document.getElementById('buscador-persona').value = '';
+          document.getElementById('lista-personas').style.display = 'none';
+          var sel = document.getElementById('persona-seleccionada');
+          sel.textContent = '✓ ' + texto;
+          sel.style.display = 'block';
+        }
+
+        document.addEventListener('click', function(e) {
+          var modal = document.getElementById('modal-add-docente');
+          if (modal && !modal.querySelector('.modal-body').contains(e.target)) return;
+          if (!e.target.closest('#buscador-persona') && !e.target.closest('#lista-personas')) {
+            document.getElementById('lista-personas').style.display = 'none';
+          }
+        });
+      </script>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

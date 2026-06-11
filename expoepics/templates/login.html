@@ -42,6 +42,7 @@
         <button class="tab-btn" data-tab="estudiante">Estudiante</button>
         <button class="tab-btn" data-tab="juez">Juez / Marketing</button>
         <button class="tab-btn" data-tab="admin">Admin</button>
+        <button class="tab-btn" data-tab="admin_docentes">Admin Docentes</button>
       </div>
 
       <!-- Error -->
@@ -49,8 +50,8 @@
         <div class="alert alert-danger">{{ error }}</div>
       {% endif %}
 
-      <!-- Form -->
-      <form method="POST" action="{{ url_for('auth.login') }}">
+      <!-- Formulario normal (docente / estudiante / juez / admin) -->
+      <form id="form-normal" method="POST" action="{{ url_for('auth.login') }}">
         <input type="hidden" name="tab" id="selected-tab" value="{{ tab or 'docente' }}">
 
         <div class="form-group">
@@ -63,6 +64,26 @@
           <label for="contrasena">Contraseña</label>
           <input type="password" id="contrasena" name="contrasena"
                  placeholder="••••••••" required autocomplete="current-password">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full" style="margin-top:4px;">
+          Iniciar sesión
+        </button>
+      </form>
+
+      <!-- Formulario Admin Docentes (usuario MySQL) -->
+      <form id="form-admin-docentes" method="POST"
+            action="{{ url_for('admin_docentes.login') }}" style="display:none;">
+        <div class="form-group">
+          <label for="ad-usuario">Usuario MySQL</label>
+          <input type="text" id="ad-usuario" name="usuario"
+                 placeholder="administrador_docentes" autocomplete="username">
+        </div>
+
+        <div class="form-group">
+          <label for="ad-contrasena">Contraseña MySQL</label>
+          <input type="password" id="ad-contrasena" name="contrasena"
+                 placeholder="••••••••" autocomplete="current-password">
         </div>
 
         <button type="submit" class="btn btn-primary btn-full" style="margin-top:4px;">
@@ -143,6 +164,13 @@
           <div class="cred-item">
             <span class="cred-role">Admin</span>
             <code>admin@usmp.edu.pe</code> / <code>admin123</code>
+          </div>
+        </div>
+
+        <div id="creds-admin_docentes" class="hidden">
+          <div class="cred-item">
+            <span class="cred-role">Usuario MySQL</span>
+            <code>administrador_docentes</code> / <em>tu contraseña MySQL</em>
           </div>
         </div>
       </div>

@@ -14,13 +14,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /* ── Login tabs ── */
 function initLoginTabs() {
-  const btns   = document.querySelectorAll('.tab-btn');
-  const input  = document.getElementById('selected-tab');
+  const btns        = document.querySelectorAll('.tab-btn');
+  const input       = document.getElementById('selected-tab');
+  const formNormal  = document.getElementById('form-normal');
+  const formAdDoc   = document.getElementById('form-admin-docentes');
   const panels = {
-    docente:    document.getElementById('creds-docente'),
-    estudiante: document.getElementById('creds-estudiante'),
-    juez:       document.getElementById('creds-juez'),
-    admin:      document.getElementById('creds-admin'),
+    docente:        document.getElementById('creds-docente'),
+    estudiante:     document.getElementById('creds-estudiante'),
+    juez:           document.getElementById('creds-juez'),
+    admin:          document.getElementById('creds-admin'),
+    admin_docentes: document.getElementById('creds-admin_docentes'),
   };
 
   function activate(tab) {
@@ -29,6 +32,17 @@ function initLoginTabs() {
       if (el) el.classList.toggle('hidden', k !== tab);
     });
     if (input) input.value = tab;
+
+    const isAdDoc = tab === 'admin_docentes';
+    if (formNormal) formNormal.style.display = isAdDoc ? 'none' : '';
+    if (formAdDoc)  formAdDoc.style.display  = isAdDoc ? ''     : 'none';
+
+    // toggle required on fields so browser validation doesn't block wrong form
+    if (formNormal) {
+      formNormal.querySelectorAll('[required]').forEach(el => {
+        el.required = !isAdDoc;
+      });
+    }
   }
 
   btns.forEach(btn => {

@@ -27,6 +27,7 @@
           {% elif session.role == 'juez' %}Portal Juez
           {% elif session.role == 'marketing' %}Portal Marketing
           {% elif session.role == 'administrador' %}Panel Administrador
+          {% elif session.role == 'admin_docentes' %}Admin Docentes
           {% endif %}
         </div>
       </div>
@@ -162,11 +163,20 @@
            class="nav-item {% if request.endpoint == 'admin.cuenta' %}active{% endif %}">
           <i class="ti ti-user-circle"></i> Mi Cuenta
         </a>
+
+      {% elif session.role == 'admin_docentes' %}
+        <a href="{{ url_for('admin_docentes.dashboard') }}"
+           class="nav-item {% if request.endpoint == 'admin_docentes.dashboard' %}active{% endif %}">
+          <i class="ti ti-layout-dashboard"></i> Dashboard
+        </a>
+        <a href="{{ url_for('admin_docentes.logout') }}" class="nav-item">
+          <i class="ti ti-logout"></i> Cerrar sesión
+        </a>
       {% endif %}
     </nav>
 
     <div class="sidebar-user">
-      <div class="user-avatar">{{ session.nombre[0] | upper }}{{ session.apellido[0] | upper }}</div>
+      <div class="user-avatar">{{ (session.nombre or 'A')[0] | upper }}{{ (session.apellido or 'D')[0] | upper }}</div>
       <div>
         <div class="user-name">{{ session.nombre }} {{ session.apellido }}</div>
         <div class="user-role">{{ session.role | title }}</div>

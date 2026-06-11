@@ -50,13 +50,14 @@ def create_app():
             evt = query("SELECT * FROM evento WHERE es_activo=1 LIMIT 1", fetch_one=True)
         return {'g_evento': evt, 'g_todos_eventos': todos or []}
 
-    from routes.auth_routes           import auth_bp
-    from routes.docente_routes        import docente_bp
-    from routes.secretaria_routes     import secretaria_bp
-    from routes.estudiante_routes     import estudiante_bp
-    from routes.juez_routes           import juez_bp
-    from routes.marketing_routes      import marketing_bp
-    from routes.administrador_routes  import admin_bp
+    from routes.auth_routes              import auth_bp
+    from routes.docente_routes           import docente_bp
+    from routes.secretaria_routes        import secretaria_bp
+    from routes.estudiante_routes        import estudiante_bp
+    from routes.juez_routes              import juez_bp
+    from routes.marketing_routes         import marketing_bp
+    from routes.administrador_routes     import admin_bp
+    from routes.admin_docentes_routes    import admin_docentes_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(docente_bp)
@@ -65,10 +66,12 @@ def create_app():
     app.register_blueprint(juez_bp)
     app.register_blueprint(marketing_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(admin_docentes_bp)
 
     @app.route('/')
     def index():
-        if 'id_persona' not in session:
+        role = session.get('role')
+        if not role:
             return redirect(url_for('auth.login'))
         _map = {
             'secretaria':    'secretaria.dashboard',
@@ -77,8 +80,9 @@ def create_app():
             'juez':          'juez.proyectos',
             'estudiante':    'estudiante.proyecto',
             'administrador': 'admin.dashboard',
+            'admin_docentes': 'admin_docentes.dashboard',
         }
-        return redirect(url_for(_map.get(session.get('role'), 'auth.login')))
+        return redirect(url_for(_map.get(role, 'auth.login')))
 
     return app
 

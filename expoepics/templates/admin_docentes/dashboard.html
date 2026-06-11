@@ -31,7 +31,6 @@
           <th>Nombre</th>
           <th>Apellido</th>
           <th>Correo</th>
-          <th>Pass temporal</th>
           <th></th>
         </tr>
       </thead>
@@ -44,13 +43,6 @@
           <td>{{ p.apellido }}</td>
           <td class="text-muted">{{ p.correo }}</td>
           <td>
-            {% if p.contrasena_temporal %}
-              <span class="badge badge-warn">Sí</span>
-            {% else %}
-              <span class="badge badge-gray">No</span>
-            {% endif %}
-          </td>
-          <td>
             <form method="POST"
                   action="{{ url_for('admin_docentes.eliminar_persona', id_persona=p.id_persona) }}"
                   data-confirm="¿Eliminar a {{ p.nombre }} {{ p.apellido }}? Esta acción no se puede deshacer.">
@@ -61,7 +53,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="7" class="text-muted" style="text-align:center;padding:32px 0;">Sin registros.</td></tr>
+        <tr><td colspan="6" class="text-muted" style="text-align:center;padding:32px 0;">Sin registros.</td></tr>
         {% endfor %}
       </tbody>
     </table>

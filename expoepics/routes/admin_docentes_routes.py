@@ -47,19 +47,13 @@ def dashboard():
         return guard
 
     personas = query(
-        "SELECT id_persona, dni, nombre, apellido, correo, contrasena_temporal "
-        "FROM persona ORDER BY apellido, nombre"
+        "SELECT * FROM vista_personas ORDER BY apellido, nombre"
     )
     docentes = query(
-        "SELECT d.id_docente, d.id_persona, d.es_director, "
-        "       p.nombre, p.apellido, p.correo, p.dni "
-        "FROM docente_expoepics d "
-        "JOIN persona p ON d.id_persona = p.id_persona "
-        "ORDER BY p.apellido, p.nombre"
+        "SELECT * FROM vista_docentes ORDER BY apellido, nombre"
     )
     personas_disponibles = query(
-        "SELECT id_persona, nombre, apellido "
-        "FROM persona "
+        "SELECT * FROM vista_personas "
         "WHERE id_persona NOT IN (SELECT id_persona FROM docente_expoepics) "
         "ORDER BY apellido, nombre"
     )

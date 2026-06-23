@@ -396,12 +396,17 @@ def proyecto_detalle(id_proyecto):
 
     tecnologias = [t.strip() for t in (proyecto['tecnologias_usadas'] or '').split(',') if t.strip()]
 
+    documentos = query(
+        "SELECT * FROM proyecto_documento WHERE id_proyecto=%s ORDER BY fecha_subida",
+        (id_proyecto,)) or []
+
     return render_template('docente/proyecto_detalle.html',
                            proyecto=proyecto,
                            integrantes=integrantes,
                            evaluaciones=evaluaciones,
                            es_docente_del_curso=es_docente_del_curso,
-                           tecnologias=tecnologias)
+                           tecnologias=tecnologias,
+                           documentos=documentos)
 
 
 @docente_bp.route('/proyecto/<int:id>/estado', methods=['POST'])
@@ -436,10 +441,12 @@ def cambiar_estado(id):
 @role_required('docente')
 def evaluaciones():
     evento = _get_evento()
+    es_director = bool(session.get('es_director'))
     lista = []
-    sin_evaluar = 0
+    proyectos_sin_evaluar = []
+
     if evento:
-        lista = query(
+        _base_ev = (
             "SELECT ev.id_evaluacion, ev.calificacion, ev.detalle, ev.aspectos_mejora, "
             "ev.fecha_evaluacion, ev.finalizada, "
             "p.nombre AS nombre_proyecto, p.id_proyecto, "
@@ -451,21 +458,39 @@ def evaluaciones():
             "JOIN curso c ON g.id_curso=c.id_curso "
             "JOIN juez j ON ev.id_juez=j.id_juez "
             "JOIN persona per ON j.id_persona=per.id_persona "
-            "WHERE g.id_evento=%s "
-            "ORDER BY ev.fecha_evaluacion DESC, p.nombre",
-            (evento['id_evento'],))
-        row = query(
-            "SELECT COUNT(*) AS cnt FROM proyecto p "
+        )
+        if es_director:
+            lista = query(
+                _base_ev + "WHERE g.id_evento=%s ORDER BY ev.fecha_evaluacion DESC, p.nombre",
+                (evento['id_evento'],))
+        else:
+            lista = query(
+                _base_ev + "WHERE g.id_evento=%s AND c.id_docente=%s "
+                "ORDER BY ev.fecha_evaluacion DESC, p.nombre",
+                (evento['id_evento'], session['role_id']))
+
+        _base_sin = (
+            "SELECT p.nombre AS nombre_proyecto, p.id_proyecto, c.nombre AS nombre_curso "
+            "FROM proyecto p "
             "JOIN grupo g ON p.id_grupo=g.id_grupo "
             "JOIN curso c ON g.id_curso=c.id_curso "
-            "WHERE g.id_evento=%s AND c.id_docente=%s "
-            "AND p.id_proyecto NOT IN (SELECT DISTINCT id_proyecto FROM evaluacion)",
-            (evento['id_evento'], session['role_id']), fetch_one=True)
-        sin_evaluar = row['cnt'] if row else 0
+            "WHERE g.id_evento=%s "
+            "AND p.id_proyecto NOT IN (SELECT DISTINCT id_proyecto FROM evaluacion) "
+            "ORDER BY c.nombre, p.nombre"
+        )
+        if es_director:
+            proyectos_sin_evaluar = query(_base_sin, (evento['id_evento'],)) or []
+        else:
+            proyectos_sin_evaluar = query(
+                _base_sin.replace("WHERE g.id_evento=%s", "WHERE g.id_evento=%s AND c.id_docente=%s"),
+                (evento['id_evento'], session['role_id'])) or []
 
     return render_template('docente/evaluaciones.html',
-                           evaluaciones=lista, evento=evento,
-                           sin_evaluar=sin_evaluar)
+                           evaluaciones=lista or [],
+                           evento=evento,
+                           sin_evaluar=len(proyectos_sin_evaluar),
+                           proyectos_sin_evaluar=proyectos_sin_evaluar,
+                           es_director=es_director)
 
 
 @docente_bp.route('/organizar-grupos')
@@ -1025,7 +1050,8 @@ def asistencia():
         "FROM ( "
         "    SELECT DISTINCT ic.id_estudiante, ic.id_curso "
         "    FROM inscripcion_curso ic "
-        "    WHERE ic.id_curso IN (SELECT DISTINCT id_curso FROM grupo WHERE id_evento = %s) "
+        "    WHERE ic.id_evento = %s "
+        "      AND ic.id_curso IN (SELECT DISTINCT id_curso FROM grupo WHERE id_evento = %s) "
         "    UNION "
         "    SELECT DISTINCT eg.id_estudiante, g.id_curso "
         "    FROM estudiante_grupo eg "
@@ -1038,7 +1064,7 @@ def asistencia():
         "LEFT JOIN participacion pa "
         "       ON pa.id_estudiante = es.id_estudiante AND pa.id_evento = %s "
         "ORDER BY c.nombre, per.apellido, per.nombre",
-        (id_evento, id_evento, id_evento))
+        (id_evento, id_evento, id_evento, id_evento))
 
     cursos = {}
     for r in rows:

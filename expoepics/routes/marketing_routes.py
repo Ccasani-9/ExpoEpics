@@ -47,18 +47,75 @@ def _stars(promedio):
     return round(promedio, 1)
 
 
+def _evaluaciones_proyecto(id_proyecto):
+    rows = query(
+        "SELECT ev.calificacion, ev.detalle, ev.aspectos_mejora, ev.fecha_evaluacion, ev.finalizada, "
+        "CONCAT(per.nombre,' ',per.apellido) AS nombre_juez "
+        "FROM evaluacion ev JOIN juez j ON ev.id_juez=j.id_juez "
+        "JOIN persona per ON j.id_persona=per.id_persona "
+        "WHERE ev.id_proyecto=%s ORDER BY ev.fecha_evaluacion DESC",
+        (id_proyecto,)) or []
+    out = []
+    for r in rows:
+        d = dict(r)
+        if d.get('fecha_evaluacion') is not None:
+            d['fecha_evaluacion'] = str(d['fecha_evaluacion'])
+        d['finalizada'] = bool(d['finalizada'])
+        out.append(d)
+    return out
+
+
+def _documentos_proyecto(id_proyecto):
+    rows = query(
+        "SELECT id_documento, nombre_original, url_archivo, fecha_subida "
+        "FROM proyecto_documento WHERE id_proyecto=%s ORDER BY fecha_subida",
+        (id_proyecto,)) or []
+    out = []
+    for r in rows:
+        d = dict(r)
+        if d.get('fecha_subida') is not None:
+            d['fecha_subida'] = str(d['fecha_subida'])
+        out.append(d)
+    return out
+
+
 @marketing_bp.route('/ranking')
 @role_required('marketing')
 def ranking():
     evento = _get_evento()
     proyectos = []
+    cursos_set = {}
     if evento:
         raw = _get_ranking(evento['id_evento'])
-        for p in raw:
-            p['estrellas'] = _stars(p['promedio'])
-        proyectos = raw
+        for r in raw:
+            p = dict(r)
+            p['promedio']      = float(p['promedio']) if p['promedio'] is not None else None
+            p['estrellas']     = _stars(p['promedio'])
+            p['evaluaciones']  = _evaluaciones_proyecto(p['id_proyecto'])
+            p['documentos']    = _documentos_proyecto(p['id_proyecto'])
+            proyectos.append(p)
+            cursos_set[p['nombre_curso']] = p['color']
+
+    cursos = [{'nombre': k, 'color': v} for k, v in sorted(cursos_set.items())]
+
+    # Podio: top 3 valores de promedio distintos (empates comparten el mismo puesto)
+    grupos = []
+    for p in proyectos:
+        if p['promedio'] is None:
+            continue
+        val = round(p['promedio'], 2)
+        if grupos and grupos[-1]['valor'] == val:
+            grupos[-1]['proyectos'].append(p)
+        else:
+            grupos.append({'valor': val, 'proyectos': [p]})
+    podio = grupos[:3]
+    for i, g in enumerate(podio, 1):
+        g['posicion'] = i
+        g['empate'] = len(g['proyectos']) > 1
+
     return render_template('marketing/ranking.html',
-                           proyectos=proyectos, evento=evento, stars=_stars)
+                           proyectos=proyectos, podio=podio, cursos=cursos,
+                           evento=evento, stars=_stars)
 
 
 @marketing_bp.route('/proyectos')

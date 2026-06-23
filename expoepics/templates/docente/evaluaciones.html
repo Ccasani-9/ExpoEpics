@@ -4,30 +4,30 @@
 
 {% block content %}
 
-{% set finalizadas = evaluaciones | selectattr('finalizada') | list | length %}
-{% set borradores  = evaluaciones | rejectattr('finalizada') | list | length %}
+{% set finalizadas = evaluaciones | selectattr('finalizada') | list %}
+{% set borradores  = evaluaciones | rejectattr('finalizada') | list %}
 
-<!-- Tarjetas de contador -->
+<!-- Tarjetas de contador (clicables) -->
 <div class="metrics-grid" style="margin-bottom:24px;">
-  <div class="metric-card mc-light mc-eval-green">
+  <div class="metric-card mc-light mc-eval-green metric-card-clickable" onclick="abrirModalEval('revisados')">
     <i class="ti ti-circle-check mc-icon"></i>
     <div class="metric-label">Revisados</div>
-    <div class="metric-value">{{ finalizadas }}</div>
+    <div class="metric-value">{{ finalizadas | length }}</div>
     <div class="metric-sub">Evaluaciones finalizadas</div>
   </div>
-  <div class="metric-card mc-light mc-eval-red">
+  <div class="metric-card mc-light mc-eval-red metric-card-clickable" onclick="abrirModalEval('sin_evaluar')">
     <i class="ti ti-alert-circle mc-icon"></i>
     <div class="metric-label">Sin evaluar</div>
     <div class="metric-value">{{ sin_evaluar }}</div>
     <div class="metric-sub">Proyectos sin evaluación</div>
   </div>
-  <div class="metric-card mc-light mc-eval-amber">
+  <div class="metric-card mc-light mc-eval-amber metric-card-clickable" onclick="abrirModalEval('borrador')">
     <i class="ti ti-pencil mc-icon"></i>
     <div class="metric-label">En borrador</div>
-    <div class="metric-value">{{ borradores }}</div>
+    <div class="metric-value">{{ borradores | length }}</div>
     <div class="metric-sub">Evaluaciones no finalizadas</div>
   </div>
-  <div class="metric-card mc-light mc-sky1">
+  <div class="metric-card mc-light mc-sky1 metric-card-clickable" onclick="abrirModalEval('total')">
     <i class="ti ti-chart-bar mc-icon"></i>
     <div class="metric-label">Total evaluaciones</div>
     <div class="metric-value">{{ evaluaciones | length }}</div>
@@ -37,7 +37,9 @@
 
 <div class="section-header mb-16" style="margin-bottom:18px;">
   <div>
-    <div class="section-title">Todas las evaluaciones</div>
+    <div class="section-title">Todas las evaluaciones
+      {% if not es_director %}<span style="font-size:13px; font-weight:400; color:var(--muted);"> — solo mis cursos</span>{% endif %}
+    </div>
     <div class="section-subtitle">{{ evaluaciones | length }} evaluación(es) registrada(s)</div>
   </div>
 </div>
@@ -101,4 +103,101 @@
   </table>
 </div>
 {% endif %}
+
+<!-- ══ MODAL EVALUACIONES ══ -->
+<div class="modal-overlay" id="modal-eval" onclick="if(event.target===this)cerrarModalEval()">
+  <div class="modal-box" style="max-width:720px;">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-eval-title"></div>
+      <button class="modal-close" onclick="cerrarModalEval()">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="modal-eval-body"></div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* Datos embebidos */
+var _evData = {{ evaluaciones | tojson }};
+var _sinData = {{ proyectos_sin_evaluar | tojson }};
+
+function _calBadge(cal) {
+  var map = { 'Excelente':'badge-success','Muy buena':'badge-blue','Buena':'badge-blue','Regular':'badge-warn' };
+  return '<span class="badge ' + (map[cal] || 'badge-danger') + '">' + cal + '</span>';
+}
+
+function _renderTablaEval(lista, titulo) {
+  document.getElementById('modal-eval-title').innerHTML =
+    '<i class="ti ti-star" style="margin-right:6px;color:var(--blue);"></i>' + titulo +
+    ' <span style="font-size:13px;font-weight:400;color:var(--muted);">(' + lista.length + ')</span>';
+
+  if (!lista.length) {
+    document.getElementById('modal-eval-body').innerHTML =
+      '<div class="modal-empty">No hay evaluaciones en esta categoría.</div>';
+    return;
+  }
+  var html = '<div class="table-wrap" style="max-height:420px;overflow-y:auto;"><table>'
+    + '<thead><tr><th>Proyecto</th><th>Curso</th><th>Juez</th><th>Calificación</th><th>Observaciones</th></tr></thead><tbody>';
+  lista.forEach(function(ev) {
+    var obs = ev.detalle ? ev.detalle.substring(0,70) + (ev.detalle.length > 70 ? '…' : '') : '—';
+    html += '<tr>'
+      + '<td><a href="/docente/proyecto/' + ev.id_proyecto + '" style="font-weight:600;">' + ev.nombre_proyecto + '</a></td>'
+      + '<td class="text-muted">' + ev.nombre_curso + '</td>'
+      + '<td>' + ev.nombre_juez + '</td>'
+      + '<td>' + _calBadge(ev.calificacion) + '</td>'
+      + '<td class="text-sm text-muted" style="max-width:200px;">' + obs + '</td>'
+      + '</tr>';
+  });
+  html += '</tbody></table></div>';
+  document.getElementById('modal-eval-body').innerHTML = html;
+}
+
+function _renderSinEvaluar() {
+  document.getElementById('modal-eval-title').innerHTML =
+    '<i class="ti ti-alert-circle" style="margin-right:6px;color:var(--danger);"></i>Sin evaluar' +
+    ' <span style="font-size:13px;font-weight:400;color:var(--muted);">(' + _sinData.length + ')</span>';
+
+  if (!_sinData.length) {
+    document.getElementById('modal-eval-body').innerHTML =
+      '<div class="modal-empty" style="color:var(--success);">'
+      + '<i class="ti ti-circle-check" style="font-size:30px;display:block;margin-bottom:8px;"></i>'
+      + '¡Todos los proyectos tienen al menos una evaluación!</div>';
+    return;
+  }
+  var html = '<div class="table-wrap" style="max-height:420px;overflow-y:auto;"><table>'
+    + '<thead><tr><th>Proyecto</th><th>Curso</th></tr></thead><tbody>';
+  _sinData.forEach(function(p) {
+    html += '<tr>'
+      + '<td><a href="/docente/proyecto/' + p.id_proyecto + '" style="font-weight:600;">' + p.nombre_proyecto + '</a></td>'
+      + '<td class="text-muted">' + p.nombre_curso + '</td>'
+      + '</tr>';
+  });
+  html += '</tbody></table></div>';
+  document.getElementById('modal-eval-body').innerHTML = html;
+}
+
+function abrirModalEval(tipo) {
+  var overlay = document.getElementById('modal-eval');
+  overlay.classList.add('open');
+  if (tipo === 'revisados') {
+    _renderTablaEval(_evData.filter(function(e){ return e.finalizada; }), 'Evaluaciones revisadas');
+  } else if (tipo === 'borrador') {
+    _renderTablaEval(_evData.filter(function(e){ return !e.finalizada; }), 'Evaluaciones en borrador');
+  } else if (tipo === 'total') {
+    _renderTablaEval(_evData, 'Total de evaluaciones');
+  } else if (tipo === 'sin_evaluar') {
+    _renderSinEvaluar();
+  }
+}
+
+function cerrarModalEval() {
+  document.getElementById('modal-eval').classList.remove('open');
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') cerrarModalEval();
+});
+</script>
 {% endblock %}

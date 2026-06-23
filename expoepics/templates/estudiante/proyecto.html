@@ -64,10 +64,41 @@
       {{ proyecto.descripcion or 'Sin descripción registrada.' }}
     </p>
     <div style="margin-top:14px;">
-      {% if proyecto.url_documento %}
-        <a href="{{ proyecto.url_documento }}" target="_blank" class="btn btn-outline btn-sm">
-          <i class="ti ti-file-description"></i> Ver documentación
-        </a>
+      {% if documentos %}
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          {% for doc in documentos %}
+            {% set es_img = doc.url_archivo.endswith('.png') or doc.url_archivo.endswith('.jpg') or doc.url_archivo.endswith('.jpeg') %}
+            <div style="border:1px solid var(--border); border-radius:10px; overflow:hidden;">
+              {% if es_img %}
+                <img src="{{ url_for('static', filename=doc.url_archivo) }}"
+                     alt="{{ doc.nombre_original }}"
+                     style="width:100%; max-height:180px; object-fit:contain; display:block; background:#f8f9fa;">
+              {% endif %}
+              <div style="display:flex; align-items:center; gap:10px; padding:8px 12px;">
+                {% if doc.url_archivo.endswith('.pdf') %}
+                  <i class="ti ti-file-type-pdf" style="font-size:18px; color:#e53e3e; flex-shrink:0;"></i>
+                {% else %}
+                  <i class="ti ti-photo" style="font-size:18px; color:#3182ce; flex-shrink:0;"></i>
+                {% endif %}
+                <span style="font-size:13px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ doc.nombre_original }}</span>
+                <a href="{{ url_for('static', filename=doc.url_archivo) }}" target="_blank"
+                   download="{{ doc.nombre_original }}" class="btn btn-outline btn-sm" style="flex-shrink:0;">
+                  <i class="ti ti-download"></i>
+                </a>
+                {% if es_lider and puede_editar %}
+                <form method="POST"
+                      action="{{ url_for('estudiante.eliminar_documento', id_doc=doc.id_documento) }}"
+                      onsubmit="return confirm('¿Eliminar «{{ doc.nombre_original }}»?')"
+                      style="flex-shrink:0; margin:0;">
+                  <button type="submit" class="btn btn-danger btn-sm">
+                    <i class="ti ti-trash"></i>
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
       {% else %}
         <div class="alert alert-warning" style="font-size:12.5px;">
           <i class="ti ti-alert-triangle"></i> No hay documentación adjunta aún.

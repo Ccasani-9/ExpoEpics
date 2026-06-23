@@ -21,44 +21,63 @@ def _get_evento():
 def proyectos():
     evento = _get_evento()
     pendientes = []
+    borradores = []
     evaluados  = []
+
     if evento:
         id_evento = evento['id_evento']
         id_juez   = session['role_id']
 
-        evaluados = query(
-            "SELECT p.id_proyecto, p.nombre, ev.calificacion, ev.id_evaluacion, ev.finalizada, "
-            "c.nombre AS nombre_curso, g.id_grupo, e.num_mesa "
-            "FROM evaluacion ev JOIN proyecto p ON ev.id_proyecto=p.id_proyecto "
-            "JOIN grupo g ON p.id_grupo=g.id_grupo "
-            "JOIN curso c ON g.id_curso=c.id_curso "
-            "JOIN espacio e ON g.id_espacio=e.id_espacio "
-            "WHERE ev.id_juez=%s AND g.id_evento=%s ORDER BY ev.fecha_evaluacion DESC",
-            (id_juez, id_evento))
+        todas_eval = query(
+            "SELECT p.id_proyecto, p.nombre, p.descripcion, "
+            "ev.calificacion, ev.id_evaluacion, ev.finalizada, "
+            "c.nombre AS nombre_curso, c.color, g.id_grupo, e.num_mesa "
+            "FROM evaluacion ev "
+            "JOIN proyecto p ON ev.id_proyecto = p.id_proyecto "
+            "JOIN grupo g ON p.id_grupo = g.id_grupo "
+            "JOIN curso c ON g.id_curso = c.id_curso "
+            "JOIN espacio e ON g.id_espacio = e.id_espacio "
+            "WHERE ev.id_juez = %s AND g.id_evento = %s "
+            "ORDER BY c.nombre, e.num_mesa",
+            (id_juez, id_evento)) or []
 
-        ids_evaluados = [r['id_proyecto'] for r in evaluados]
-        if ids_evaluados:
-            fmt = ','.join(['%s'] * len(ids_evaluados))
-            pendientes = query(
+        ids_con_eval = [r['id_proyecto'] for r in todas_eval]
+        borradores   = [dict(r) for r in todas_eval if not r['finalizada']]
+        evaluados    = [dict(r) for r in todas_eval if r['finalizada']]
+
+        if ids_con_eval:
+            fmt = ','.join(['%s'] * len(ids_con_eval))
+            pend_raw = query(
                 f"SELECT p.id_proyecto, p.nombre, p.descripcion, "
-                f"c.nombre AS nombre_curso, g.id_grupo, e.num_mesa "
-                f"FROM proyecto p JOIN grupo g ON p.id_grupo=g.id_grupo "
-                f"JOIN curso c ON g.id_curso=c.id_curso "
-                f"JOIN espacio e ON g.id_espacio=e.id_espacio "
-                f"WHERE g.id_evento=%s AND p.id_proyecto NOT IN ({fmt})",
-                [id_evento] + ids_evaluados)
+                f"c.nombre AS nombre_curso, c.color, g.id_grupo, e.num_mesa "
+                f"FROM proyecto p "
+                f"JOIN grupo g ON p.id_grupo = g.id_grupo "
+                f"JOIN curso c ON g.id_curso = c.id_curso "
+                f"JOIN espacio e ON g.id_espacio = e.id_espacio "
+                f"WHERE g.id_evento = %s AND p.id_proyecto NOT IN ({fmt}) "
+                f"ORDER BY c.nombre, e.num_mesa",
+                [id_evento] + ids_con_eval) or []
         else:
-            pendientes = query(
+            pend_raw = query(
                 "SELECT p.id_proyecto, p.nombre, p.descripcion, "
-                "c.nombre AS nombre_curso, g.id_grupo, e.num_mesa "
-                "FROM proyecto p JOIN grupo g ON p.id_grupo=g.id_grupo "
-                "JOIN curso c ON g.id_curso=c.id_curso "
-                "JOIN espacio e ON g.id_espacio=e.id_espacio "
-                "WHERE g.id_evento=%s",
-                (id_evento,))
+                "c.nombre AS nombre_curso, c.color, g.id_grupo, e.num_mesa "
+                "FROM proyecto p "
+                "JOIN grupo g ON p.id_grupo = g.id_grupo "
+                "JOIN curso c ON g.id_curso = c.id_curso "
+                "JOIN espacio e ON g.id_espacio = e.id_espacio "
+                "WHERE g.id_evento = %s "
+                "ORDER BY c.nombre, e.num_mesa",
+                (id_evento,)) or []
+        pendientes = [dict(r) for r in pend_raw]
+
+    total = len(pendientes) + len(borradores) + len(evaluados)
 
     return render_template('juez/proyectos.html',
-                           pendientes=pendientes, evaluados=evaluados, evento=evento)
+                           pendientes=pendientes,
+                           borradores=borradores,
+                           evaluados=evaluados,
+                           total=total,
+                           evento=evento)
 
 
 @juez_bp.route('/evaluar/<int:id_proyecto>', methods=['GET', 'POST'])
@@ -67,7 +86,7 @@ def evaluar(id_proyecto):
     id_juez = session['role_id']
 
     proyecto = query(
-        "SELECT p.*, c.nombre AS nombre_curso, g.id_grupo, e.num_mesa "
+        "SELECT p.*, c.nombre AS nombre_curso, c.color, g.id_grupo, e.num_mesa "
         "FROM proyecto p JOIN grupo g ON p.id_grupo=g.id_grupo "
         "JOIN curso c ON g.id_curso=c.id_curso "
         "JOIN espacio e ON g.id_espacio=e.id_espacio "
@@ -81,6 +100,10 @@ def evaluar(id_proyecto):
         "SELECT * FROM evaluacion WHERE id_proyecto=%s AND id_juez=%s",
         (id_proyecto, id_juez), fetch_one=True)
 
+    documentos = query(
+        "SELECT * FROM proyecto_documento WHERE id_proyecto=%s ORDER BY fecha_subida",
+        (id_proyecto,)) or []
+
     error = None
     if request.method == 'POST':
         if evaluacion and evaluacion['finalizada']:
@@ -92,7 +115,7 @@ def evaluar(id_proyecto):
         aspectos_mejora = request.form.get('aspectos_mejora', '').strip()
         accion          = request.form.get('accion', 'borrador')
 
-        opciones_val = ('Excelente','Muy buena','Buena','Regular','Mala','Revisado')
+        opciones_val = ('Excelente', 'Muy buena', 'Buena', 'Regular', 'Mala', 'Revisado')
         if calificacion not in opciones_val:
             error = 'Debes seleccionar una calificación válida.'
         else:
@@ -104,7 +127,8 @@ def evaluar(id_proyecto):
                     (calificacion, detalle, aspectos_mejora, finalizada, evaluacion['id_evaluacion']), commit=True)
             else:
                 query(
-                    "INSERT INTO evaluacion (id_proyecto,id_juez,calificacion,detalle,aspectos_mejora,fecha_evaluacion,finalizada) "
+                    "INSERT INTO evaluacion "
+                    "(id_proyecto,id_juez,calificacion,detalle,aspectos_mejora,fecha_evaluacion,finalizada) "
                     "VALUES(%s,%s,%s,%s,%s,CURDATE(),%s)",
                     (id_proyecto, id_juez, calificacion, detalle, aspectos_mejora, finalizada), commit=True)
             msg = 'Evaluación finalizada y bloqueada.' if finalizada else 'Borrador guardado correctamente.'
@@ -114,7 +138,8 @@ def evaluar(id_proyecto):
     tecnologias = [t.strip() for t in (proyecto['tecnologias_usadas'] or '').split(',') if t.strip()]
     return render_template('juez/evaluar.html',
                            proyecto=proyecto, evaluacion=evaluacion,
-                           tecnologias=tecnologias, error=error)
+                           tecnologias=tecnologias, error=error,
+                           documentos=documentos)
 
 
 @juez_bp.route('/evaluacion/<int:id_evaluacion>/finalizar', methods=['POST'])

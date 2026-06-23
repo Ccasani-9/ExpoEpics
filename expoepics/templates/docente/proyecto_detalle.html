@@ -40,11 +40,30 @@
     <p style="color:var(--muted); font-size:13.5px; line-height:1.7;">
       {{ proyecto.descripcion or 'Sin descripción.' }}
     </p>
-    {% if proyecto.url_documento %}
-      <div style="margin-top:14px;">
-        <a href="{{ proyecto.url_documento }}" target="_blank" class="btn btn-outline btn-sm">
-          <i class="ti ti-file-description"></i> Ver documentación
-        </a>
+    {% if documentos %}
+      <div style="display:flex; flex-direction:column; gap:8px; margin-top:14px;">
+        {% for doc in documentos %}
+          {% set es_img = doc.url_archivo.endswith('.png') or doc.url_archivo.endswith('.jpg') or doc.url_archivo.endswith('.jpeg') %}
+          <div style="border:1px solid var(--border); border-radius:10px; overflow:hidden;">
+            {% if es_img %}
+              <img src="{{ url_for('static', filename=doc.url_archivo) }}"
+                   alt="{{ doc.nombre_original }}"
+                   style="width:100%; max-height:200px; object-fit:contain; display:block; background:#f8f9fa;">
+            {% endif %}
+            <div style="display:flex; align-items:center; gap:10px; padding:8px 12px;">
+              {% if doc.url_archivo.endswith('.pdf') %}
+                <i class="ti ti-file-type-pdf" style="font-size:18px; color:#e53e3e; flex-shrink:0;"></i>
+              {% else %}
+                <i class="ti ti-photo" style="font-size:18px; color:#3182ce; flex-shrink:0;"></i>
+              {% endif %}
+              <span style="font-size:13px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ doc.nombre_original }}</span>
+              <a href="{{ url_for('static', filename=doc.url_archivo) }}" target="_blank"
+                 download="{{ doc.nombre_original }}" class="btn btn-outline btn-sm" style="flex-shrink:0;">
+                <i class="ti ti-download"></i> Descargar
+              </a>
+            </div>
+          </div>
+        {% endfor %}
       </div>
     {% else %}
       <div class="alert alert-warning" style="margin-top:12px; font-size:12.5px;">

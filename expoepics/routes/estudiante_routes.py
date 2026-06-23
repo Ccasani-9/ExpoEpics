@@ -1,8 +1,35 @@
 import bcrypt
+import os
+import uuid
 from datetime import date
-from flask import Blueprint, render_template, request, session, redirect, url_for, flash
+from flask import Blueprint, render_template, request, session, redirect, url_for, flash, current_app
 from auth import role_required
 from database import query
+
+ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
+MAX_FILE_BYTES = 5 * 1024 * 1024  # 5 MB
+MAX_DOCS_PER_PROJECT = 5
+
+def _allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def _save_file(file):
+    """Guarda un archivo en disco. Devuelve (ruta_relativa, error)."""
+    if not file or file.filename == '':
+        return None, None
+    if not _allowed_file(file.filename):
+        return None, f'"{file.filename}": solo se permiten PDF, PNG o JPG.'
+    file.seek(0, 2)
+    size = file.tell()
+    file.seek(0)
+    if size > MAX_FILE_BYTES:
+        return None, f'"{file.filename}" supera el límite de 5 MB.'
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    fname = f"{uuid.uuid4().hex}.{ext}"
+    upload_dir = os.path.join(current_app.static_folder, 'uploads', 'proyectos')
+    os.makedirs(upload_dir, exist_ok=True)
+    file.save(os.path.join(upload_dir, fname))
+    return 'uploads/proyectos/' + fname, None
 
 estudiante_bp = Blueprint('estudiante', __name__, url_prefix='/estudiante')
 
@@ -51,6 +78,12 @@ def proyecto():
         "JOIN espacio e ON g.id_espacio=e.id_espacio "
         "WHERE g.id_grupo=%s", (eg['id_grupo'],), fetch_one=True)
 
+    documentos = []
+    if proy:
+        documentos = query(
+            "SELECT * FROM proyecto_documento WHERE id_proyecto=%s ORDER BY fecha_subida",
+            (proy['id_proyecto'],)) or []
+
     integrantes = query(
         "SELECT per.nombre, per.apellido, est.id_estudiante, "
         "CASE WHEN g.id_lider=est.id_estudiante THEN 1 ELSE 0 END AS es_lider "
@@ -84,7 +117,8 @@ def proyecto():
                            proyecto=proy, grupo=eg, evento=evento,
                            integrantes=integrantes, evaluaciones=evaluaciones,
                            es_lider=es_lider, dias_restantes=dias_restantes,
-                           puede_editar=puede_editar, tecnologias=tecnologias)
+                           puede_editar=puede_editar, tecnologias=tecnologias,
+                           documentos=documentos)
 
 
 @estudiante_bp.route('/proyecto/editar', methods=['GET', 'POST'])
@@ -112,25 +146,77 @@ def editar_proyecto():
         flash('No hay proyecto registrado para tu grupo.', 'warning')
         return redirect(url_for('estudiante.proyecto'))
 
+    documentos = query(
+        "SELECT * FROM proyecto_documento WHERE id_proyecto=%s ORDER BY fecha_subida",
+        (proy['id_proyecto'],)) or []
+
     error = None
     if request.method == 'POST':
         nombre      = request.form.get('nombre', '').strip()
         descripcion = request.form.get('descripcion', '').strip()
         tecnologias = request.form.get('tecnologias_usadas', '').strip()
         desc_tec    = request.form.get('descripcion_tecnologia', '').strip()
-        url_doc     = request.form.get('url_documento', '').strip()
+        archivos    = request.files.getlist('documentos')
+
         if not nombre:
             error = 'El nombre del proyecto es obligatorio.'
         else:
-            query(
-                "UPDATE proyecto SET nombre=%s, descripcion=%s, tecnologias_usadas=%s, "
-                "descripcion_tecnologia=%s, url_documento=%s WHERE id_proyecto=%s",
-                (nombre, descripcion, tecnologias, desc_tec, url_doc, proy['id_proyecto']), commit=True)
-            flash('Proyecto actualizado correctamente.', 'success')
-            return redirect(url_for('estudiante.proyecto'))
+            slots_libres = MAX_DOCS_PER_PROJECT - len(documentos)
+            nuevos = [f for f in archivos if f and f.filename]
+            if nuevos and len(nuevos) > slots_libres:
+                error = f'Solo puedes subir {slots_libres} documento(s) más (máximo {MAX_DOCS_PER_PROJECT} en total).'
+            else:
+                subidos = 0
+                for f in nuevos:
+                    ruta, err = _save_file(f)
+                    if err:
+                        error = err
+                        break
+                    query(
+                        "INSERT INTO proyecto_documento (id_proyecto, url_archivo, nombre_original) VALUES (%s,%s,%s)",
+                        (proy['id_proyecto'], ruta, f.filename), commit=True)
+                    subidos += 1
+
+                if not error:
+                    query(
+                        "UPDATE proyecto SET nombre=%s, descripcion=%s, tecnologias_usadas=%s, "
+                        "descripcion_tecnologia=%s WHERE id_proyecto=%s",
+                        (nombre, descripcion, tecnologias, desc_tec, proy['id_proyecto']), commit=True)
+                    msg = 'Proyecto actualizado correctamente.'
+                    if subidos:
+                        msg += f' Se subieron {subidos} documento(s).'
+                    flash(msg, 'success')
+                    return redirect(url_for('estudiante.proyecto'))
+
+            documentos = query(
+                "SELECT * FROM proyecto_documento WHERE id_proyecto=%s ORDER BY fecha_subida",
+                (proy['id_proyecto'],)) or []
 
     return render_template('estudiante/proyecto_editar.html',
-                           proyecto=proy, error=error, dias_restantes=dias_restantes)
+                           proyecto=proy, documentos=documentos,
+                           error=error, dias_restantes=dias_restantes,
+                           max_docs=MAX_DOCS_PER_PROJECT)
+
+
+@estudiante_bp.route('/proyecto/documento/<int:id_doc>/eliminar', methods=['POST'])
+@role_required('estudiante')
+def eliminar_documento(id_doc):
+    id_est = session['role_id']
+    eg, _ = _get_grupo_y_evento(id_est)
+    if not eg or eg['id_lider'] != id_est:
+        flash('No tienes permiso para realizar esta acción.', 'danger')
+        return redirect(url_for('estudiante.proyecto'))
+    proy = query("SELECT id_proyecto FROM proyecto WHERE id_grupo=%s", (eg['id_grupo'],), fetch_one=True)
+    doc = query(
+        "SELECT * FROM proyecto_documento WHERE id_documento=%s AND id_proyecto=%s",
+        (id_doc, proy['id_proyecto']), fetch_one=True) if proy else None
+    if doc:
+        ruta_full = os.path.join(current_app.static_folder, doc['url_archivo'])
+        if os.path.exists(ruta_full):
+            os.remove(ruta_full)
+        query("DELETE FROM proyecto_documento WHERE id_documento=%s", (id_doc,), commit=True)
+        flash('Documento eliminado.', 'success')
+    return redirect(url_for('estudiante.proyecto'))
 
 
 @estudiante_bp.route('/grupo/agregar-integrante', methods=['POST'])

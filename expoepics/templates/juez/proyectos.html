@@ -3,108 +3,483 @@
 {% block page_title %}Proyectos a Evaluar{% endblock %}
 
 {% block content %}
-<!-- PENDIENTES -->
-<div class="section-header mb-16" style="margin-bottom:16px;">
-  <div>
-    <div class="section-title">Pendientes de evaluación</div>
-    <div class="section-subtitle">{{ pendientes | length }} proyecto(s) sin evaluar</div>
+{% if not evento %}
+  <div class="alert alert-warning">No hay evento activo configurado.</div>
+{% else %}
+
+<!-- ═══════════════════════════════════════════════════════
+     TARJETAS MÉTRICAS
+     ═══════════════════════════════════════════════════════ -->
+<div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px;">
+
+  <div class="mcj" data-cat="total" onclick="selectCat('total')"
+       style="background:linear-gradient(135deg,#1e3a5f 0%,#3b82f6 100%);">
+    <div class="mcj-icon"><i class="ti ti-layout-grid"></i></div>
+    <div class="mcj-num">{{ total }}</div>
+    <div class="mcj-lbl">Total proyectos</div>
   </div>
+
+  <div class="mcj" data-cat="pendientes" onclick="selectCat('pendientes')"
+       style="background:linear-gradient(135deg,#92400e 0%,#f59e0b 100%);">
+    <div class="mcj-icon"><i class="ti ti-clock"></i></div>
+    <div class="mcj-num">{{ pendientes | length }}</div>
+    <div class="mcj-lbl">Sin evaluar</div>
+  </div>
+
+  <div class="mcj" data-cat="borrador" onclick="selectCat('borrador')"
+       style="background:linear-gradient(135deg,#4c1d95 0%,#8b5cf6 100%);">
+    <div class="mcj-icon"><i class="ti ti-pencil"></i></div>
+    <div class="mcj-num">{{ borradores | length }}</div>
+    <div class="mcj-lbl">En borrador</div>
+  </div>
+
+  <div class="mcj" data-cat="evaluados" onclick="selectCat('evaluados')"
+       style="background:linear-gradient(135deg,#065f46 0%,#10b981 100%);">
+    <div class="mcj-icon"><i class="ti ti-check"></i></div>
+    <div class="mcj-num">{{ evaluados | length }}</div>
+    <div class="mcj-lbl">Finalizados</div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     PANEL DRILL-DOWN (aparece al hacer clic en una tarjeta)
+     ═══════════════════════════════════════════════════════ -->
+<div id="drill-panel" style="display:none; margin-bottom:24px;"></div>
+
+<!-- ═══════════════════════════════════════════════════════
+     LISTA COMPLETA — 2 COLUMNAS
+     ═══════════════════════════════════════════════════════ -->
+
+<!-- Pendientes -->
+<div style="margin-bottom:10px; display:flex; align-items:center; gap:10px;">
+  <div style="height:3px; width:28px; background:#f59e0b; border-radius:2px;"></div>
+  <span style="font-size:14px; font-weight:800; color:var(--navy);">Sin evaluar</span>
+  <span style="font-size:12px; background:#fef3c7; color:#92400e; border-radius:10px; padding:2px 10px; font-weight:700;">{{ pendientes | length }}</span>
 </div>
 
 {% if not pendientes %}
-  <div class="alert alert-success" style="margin-bottom:24px;">
+  <div class="alert alert-success" style="margin-bottom:20px;">
     <i class="ti ti-check"></i> ¡Has evaluado todos los proyectos disponibles!
   </div>
 {% else %}
-<div class="project-cards mb-24" style="margin-bottom:24px;">
+<div class="pj-grid" style="margin-bottom:24px;">
   {% for p in pendientes %}
-  <div class="project-card">
-    <div class="project-card-header">
-      <div>
-        <div class="project-card-title">{{ p.nombre }}</div>
-        <div class="project-card-meta">
-          <span><i class="ti ti-book"></i> {{ p.nombre_curso }}</span>
-          <span><i class="ti ti-hash"></i> Grupo {{ p.id_grupo }}</span>
-          <span><i class="ti ti-table"></i> Mesa {{ p.num_mesa }}</span>
-        </div>
-        {% if p.descripcion %}
-          <p class="text-muted text-sm" style="margin-top:6px; line-height:1.6;">
-            {{ p.descripcion[:150] }}{% if p.descripcion | length > 150 %}…{% endif %}
-          </p>
-        {% endif %}
-      </div>
-      <span class="badge badge-warn">Pendiente</span>
+  <div class="pj-card" style="border-top:4px solid {{ p.color or '#f59e0b' }};">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:8px;">
+      <div style="font-size:14px; font-weight:800; line-height:1.3; flex:1;">{{ p.nombre }}</div>
+      <span class="badge badge-warn" style="flex-shrink:0; font-size:11px;">Pendiente</span>
     </div>
-    <div style="margin-top:12px;">
-      <a href="{{ url_for('juez.evaluar', id_proyecto=p.id_proyecto) }}" class="btn btn-primary btn-sm">
-        <i class="ti ti-star"></i> Evaluar
-      </a>
+    <div style="font-size:12px; color:var(--muted); display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+      <span style="display:flex; align-items:center; gap:3px;">
+        <i class="ti ti-book" style="color:{{ p.color or '#f59e0b' }};"></i> {{ p.nombre_curso }}
+      </span>
+      <span><i class="ti ti-hash"></i> Grupo {{ p.id_grupo }}</span>
+      <span><i class="ti ti-table"></i> Mesa {{ p.num_mesa }}</span>
     </div>
+    {% if p.descripcion %}
+      <p style="font-size:12.5px; color:var(--muted); line-height:1.6; margin-bottom:10px;
+                display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
+        {{ p.descripcion }}
+      </p>
+    {% endif %}
+    <a href="{{ url_for('juez.evaluar', id_proyecto=p.id_proyecto) }}" class="btn btn-primary btn-sm"
+       style="background:{{ p.color or '#2563eb' }}; border-color:{{ p.color or '#2563eb' }};">
+      <i class="ti ti-star"></i> Evaluar
+    </a>
   </div>
   {% endfor %}
 </div>
 {% endif %}
 
-<!-- YA EVALUADOS -->
-<div class="section-header mb-16" style="margin-bottom:16px;">
-  <div>
-    <div class="section-title">Ya evaluados</div>
-    <div class="section-subtitle">{{ evaluados | length }} evaluación(es)</div>
-  </div>
+<!-- Borradores -->
+{% if borradores %}
+<div style="margin-bottom:10px; display:flex; align-items:center; gap:10px;">
+  <div style="height:3px; width:28px; background:#8b5cf6; border-radius:2px;"></div>
+  <span style="font-size:14px; font-weight:800; color:var(--navy);">En borrador</span>
+  <span style="font-size:12px; background:#ede9fe; color:#4c1d95; border-radius:10px; padding:2px 10px; font-weight:700;">{{ borradores | length }}</span>
 </div>
-
-{% if not evaluados %}
-  <div class="alert alert-info">Aún no has evaluado ningún proyecto.</div>
-{% else %}
-<div class="project-cards">
-  {% for p in evaluados %}
-  <div class="project-card" style="opacity:0.85;">
-    <div class="project-card-header">
-      <div>
-        <div class="project-card-title">{{ p.nombre }}</div>
-        <div class="project-card-meta">
-          <span><i class="ti ti-book"></i> {{ p.nombre_curso }}</span>
-          <span><i class="ti ti-hash"></i> Grupo {{ p.id_grupo }}</span>
-          <span><i class="ti ti-table"></i> Mesa {{ p.num_mesa }}</span>
-        </div>
-      </div>
-      <div style="display:flex; gap:6px; flex-direction:column; align-items:flex-end;">
+<div class="pj-grid" style="margin-bottom:24px;">
+  {% for p in borradores %}
+  <div class="pj-card" style="border-top:4px solid #8b5cf6;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:8px;">
+      <div style="font-size:14px; font-weight:800; line-height:1.3; flex:1;">{{ p.nombre }}</div>
+      <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end; flex-shrink:0;">
         {% if p.calificacion == 'Excelente' %}
-          <span class="badge badge-success">{{ p.calificacion }}</span>
+          <span class="badge badge-success" style="font-size:11px;">{{ p.calificacion }}</span>
         {% elif p.calificacion in ('Muy buena','Buena') %}
-          <span class="badge badge-blue">{{ p.calificacion }}</span>
+          <span class="badge badge-blue" style="font-size:11px;">{{ p.calificacion }}</span>
         {% elif p.calificacion == 'Regular' %}
-          <span class="badge badge-warn">{{ p.calificacion }}</span>
+          <span class="badge badge-warn" style="font-size:11px;">{{ p.calificacion }}</span>
         {% else %}
-          <span class="badge badge-danger">{{ p.calificacion }}</span>
+          <span class="badge badge-danger" style="font-size:11px;">{{ p.calificacion }}</span>
         {% endif %}
-        {% if p.finalizada %}
-          <span class="badge badge-gray">🔒 Finalizada</span>
-        {% else %}
-          <span class="badge badge-warn">Borrador</span>
-        {% endif %}
+        <span style="font-size:10px; background:#ede9fe; color:#4c1d95; border-radius:8px; padding:2px 7px; font-weight:700;">
+          <i class="ti ti-pencil"></i> Borrador
+        </span>
       </div>
     </div>
-    <div style="margin-top:10px; display:flex; gap:8px;">
-      {% if not p.finalizada %}
-        <a href="{{ url_for('juez.evaluar', id_proyecto=p.id_proyecto) }}" class="btn btn-outline btn-sm">
-          <i class="ti ti-edit"></i> Editar borrador
-        </a>
-        <form method="POST"
-              action="{{ url_for('juez.finalizar', id_evaluacion=p.id_evaluacion) }}"
-              data-confirm="¿Finalizar esta evaluación? No podrá editarse después.">
-          <button type="submit" class="btn btn-primary btn-sm">
-            <i class="ti ti-lock"></i> Finalizar
-          </button>
-        </form>
-      {% else %}
-        <a href="{{ url_for('juez.evaluar', id_proyecto=p.id_proyecto) }}" class="btn btn-outline btn-sm">
-          <i class="ti ti-eye"></i> Ver evaluación
-        </a>
-      {% endif %}
+    <div style="font-size:12px; color:var(--muted); display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+      <span style="display:flex; align-items:center; gap:3px;">
+        <i class="ti ti-book" style="color:{{ p.color or '#8b5cf6' }};"></i> {{ p.nombre_curso }}
+      </span>
+      <span><i class="ti ti-hash"></i> Grupo {{ p.id_grupo }}</span>
+      <span><i class="ti ti-table"></i> Mesa {{ p.num_mesa }}</span>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a href="{{ url_for('juez.evaluar', id_proyecto=p.id_proyecto) }}"
+         class="btn btn-sm" style="border:1.5px solid #8b5cf6; color:#7c3aed; background:transparent;">
+        <i class="ti ti-pencil"></i> Editar borrador
+      </a>
+      <form method="POST" action="{{ url_for('juez.finalizar', id_evaluacion=p.id_evaluacion) }}"
+            onsubmit="return confirm('¿Finalizar esta evaluación? No podrá editarse después.')"
+            style="margin:0;">
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="ti ti-lock"></i> Finalizar
+        </button>
+      </form>
     </div>
   </div>
   {% endfor %}
 </div>
 {% endif %}
+
+<!-- Evaluados -->
+{% if evaluados %}
+<div style="margin-bottom:10px; display:flex; align-items:center; gap:10px;">
+  <div style="height:3px; width:28px; background:#10b981; border-radius:2px;"></div>
+  <span style="font-size:14px; font-weight:800; color:var(--navy);">Evaluados y finalizados</span>
+  <span style="font-size:12px; background:#d1fae5; color:#065f46; border-radius:10px; padding:2px 10px; font-weight:700;">{{ evaluados | length }}</span>
+</div>
+<div class="pj-grid" style="margin-bottom:24px;">
+  {% for p in evaluados %}
+  <div class="pj-card" style="border-top:4px solid #10b981; opacity:0.88;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:8px;">
+      <div style="font-size:14px; font-weight:800; line-height:1.3; flex:1;">{{ p.nombre }}</div>
+      <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end; flex-shrink:0;">
+        {% if p.calificacion == 'Excelente' %}
+          <span class="badge badge-success" style="font-size:11px;">{{ p.calificacion }}</span>
+        {% elif p.calificacion in ('Muy buena','Buena') %}
+          <span class="badge badge-blue" style="font-size:11px;">{{ p.calificacion }}</span>
+        {% elif p.calificacion == 'Regular' %}
+          <span class="badge badge-warn" style="font-size:11px;">{{ p.calificacion }}</span>
+        {% else %}
+          <span class="badge badge-danger" style="font-size:11px;">{{ p.calificacion }}</span>
+        {% endif %}
+        <span style="font-size:10px; background:#d1fae5; color:#065f46; border-radius:8px; padding:2px 7px; font-weight:700;">
+          <i class="ti ti-lock"></i> Finalizada
+        </span>
+      </div>
+    </div>
+    <div style="font-size:12px; color:var(--muted); display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+      <span style="display:flex; align-items:center; gap:3px;">
+        <i class="ti ti-book" style="color:#10b981;"></i> {{ p.nombre_curso }}
+      </span>
+      <span><i class="ti ti-hash"></i> Grupo {{ p.id_grupo }}</span>
+      <span><i class="ti ti-table"></i> Mesa {{ p.num_mesa }}</span>
+    </div>
+    <a href="{{ url_for('juez.evaluar', id_proyecto=p.id_proyecto) }}" class="btn btn-outline btn-sm">
+      <i class="ti ti-eye"></i> Ver evaluación
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not pendientes and not borradores and not evaluados %}
+  <div class="card" style="text-align:center; padding:48px 20px; color:var(--muted);">
+    <i class="ti ti-clipboard-off" style="font-size:40px; display:block; margin-bottom:12px; opacity:0.4;"></i>
+    <div style="font-size:15px; font-weight:700; margin-bottom:4px;">Sin proyectos asignados</div>
+    <div style="font-size:13px;">Aún no tienes proyectos asignados para este evento.</div>
+  </div>
+{% endif %}
+
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════
+     ESTILOS
+     ═══════════════════════════════════════════════════════ -->
+<style>
+.mcj {
+  border-radius: 16px;
+  padding: 22px 18px;
+  color: #fff;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+.mcj::after {
+  content: '';
+  position: absolute;
+  bottom: -18px; right: -18px;
+  width: 72px; height: 72px;
+  background: rgba(255,255,255,0.10);
+  border-radius: 50%;
+}
+.mcj:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,0.22); }
+.mcj.active { outline: 3px solid rgba(255,255,255,0.8); box-shadow: 0 0 0 5px rgba(255,255,255,0.18); }
+.mcj-icon { font-size: 24px; margin-bottom: 10px; opacity: 0.85; }
+.mcj-num  { font-size: 36px; font-weight: 900; line-height: 1; margin-bottom: 5px; }
+.mcj-lbl  { font-size: 12px; font-weight: 600; opacity: 0.85; text-transform: uppercase; letter-spacing: .4px; }
+
+.pj-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+.pj-card {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: box-shadow .2s;
+}
+.pj-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.10); }
+
+#drill-panel .card {
+  border-radius: 14px;
+  animation: slideDown .2s ease;
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 860px) {
+  .pj-grid { grid-template-columns: 1fr !important; }
+  .mcj-num { font-size: 28px; }
+}
+@media (max-width: 640px) {
+  [style*="grid-template-columns:repeat(4,1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+</style>
+
+<!-- ═══════════════════════════════════════════════════════
+     JAVASCRIPT — DRILL-DOWN INTERACTIVO
+     ═══════════════════════════════════════════════════════ -->
+<script>
+(function() {
+
+var _pend = {{ pendientes | tojson }};
+var _borr = {{ borradores | tojson }};
+var _eval = {{ evaluados  | tojson }};
+
+/* Marcar categoría en cada registro */
+_pend.forEach(function(p){ p._cat = 'pendiente'; });
+_borr.forEach(function(p){ p._cat = 'borrador'; });
+_eval.forEach(function(p){ p._cat = 'evaluado'; });
+
+var DATA = {
+  total:      _pend.concat(_borr).concat(_eval),
+  pendientes: _pend,
+  borrador:   _borr,
+  evaluados:  _eval
+};
+
+var LABELS = {
+  total:      'Todos los proyectos',
+  pendientes: 'Proyectos sin evaluar',
+  borrador:   'Evaluaciones en borrador',
+  evaluados:  'Evaluaciones finalizadas'
+};
+var COLORS = {
+  total:      '#3b82f6',
+  pendientes: '#f59e0b',
+  borrador:   '#8b5cf6',
+  evaluados:  '#10b981'
+};
+
+var activeCat    = null;
+var activeCourse = null;
+
+/* Seleccionar / deseleccionar categoría */
+window.selectCat = function(cat) {
+  var cards = document.querySelectorAll('.mcj');
+  if (activeCat === cat) {
+    activeCat    = null;
+    activeCourse = null;
+    cards.forEach(function(c){ c.classList.remove('active'); });
+    renderPanel();
+    return;
+  }
+  activeCat    = cat;
+  activeCourse = null;
+  cards.forEach(function(c){
+    c.classList.toggle('active', c.dataset.cat === cat);
+  });
+  renderPanel();
+};
+
+/* Seleccionar curso dentro del panel */
+window.selectCourse = function(course) {
+  activeCourse = course;
+  var rows = document.getElementById('drill-rows');
+  if (rows) rows.innerHTML = buildRows(activeCat, course);
+  /* Repintar botones de curso */
+  document.querySelectorAll('.drill-course-btn').forEach(function(btn) {
+    var isActive = btn.dataset.course === course;
+    var color    = btn.dataset.color || COLORS[activeCat];
+    btn.style.background    = isActive ? color : 'var(--bg)';
+    btn.style.color         = isActive ? '#fff' : 'var(--text)';
+    btn.style.borderColor   = isActive ? color  : 'var(--border)';
+  });
+};
+
+/* Agrupar proyectos por curso */
+function groupByCourse(list) {
+  var map = {};
+  list.forEach(function(p) {
+    var cn = p.nombre_curso;
+    if (!map[cn]) map[cn] = { color: p.color || '#6b7280', count: 0 };
+    map[cn].count++;
+  });
+  return map;
+}
+
+/* Badge de calificación */
+function calBadge(cal) {
+  if (!cal) return '';
+  var paleta = {
+    'Excelente': '#10b981',
+    'Muy buena': '#3182ce',
+    'Buena':     '#3182ce',
+    'Regular':   '#f59e0b',
+    'Mala':      '#ef4444',
+    'Revisado':  '#6b7280'
+  };
+  var c = paleta[cal] || '#6b7280';
+  return '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;'
+       + 'background:' + c + '22;color:' + c + ';">' + esc(cal) + '</span>';
+}
+
+/* Botón de acción según categoría del proyecto */
+function actionBtn(p) {
+  var url = '/juez/evaluar/' + p.id_proyecto;
+  if (p._cat === 'pendiente') {
+    var color = p.color || '#2563eb';
+    return '<a href="' + url + '" class="btn btn-primary btn-sm" '
+         + 'style="background:' + color + ';border-color:' + color + ';">'
+         + '<i class="ti ti-star"></i> Evaluar</a>';
+  }
+  if (p._cat === 'borrador') {
+    return '<a href="' + url + '" class="btn btn-sm" '
+         + 'style="border:1.5px solid #8b5cf6;color:#7c3aed;background:transparent;">'
+         + '<i class="ti ti-pencil"></i> Editar borrador</a>';
+  }
+  return '<a href="' + url + '" class="btn btn-outline btn-sm">'
+       + '<i class="ti ti-eye"></i> Ver evaluación</a>';
+}
+
+/* Filas de proyectos para un curso */
+function buildRows(cat, course) {
+  var list = (DATA[cat] || []).filter(function(p){ return p.nombre_curso === course; });
+  if (!list.length) return '<div class="alert alert-info" style="margin:0;">Sin proyectos para este curso.</div>';
+  return list.map(function(p) {
+    var leftBorder = p.color || COLORS[cat] || '#6b7280';
+    return '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;'
+         + 'background:var(--bg);border:1px solid var(--border);'
+         + 'border-left:4px solid ' + leftBorder + ';'
+         + 'border-radius:10px;flex-wrap:wrap;">'
+         + '<div style="flex:1;min-width:0;">'
+         + '<div style="font-weight:700;font-size:14px;">' + esc(p.nombre) + '</div>'
+         + '<div style="font-size:12px;color:var(--muted);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;">'
+         + '<span><i class="ti ti-table"></i> Mesa ' + p.num_mesa + '</span>'
+         + '<span><i class="ti ti-hash"></i> Grupo ' + p.id_grupo + '</span>'
+         + (p.calificacion ? calBadge(p.calificacion) : '')
+         + '</div>'
+         + (p.descripcion
+              ? '<div style="font-size:12px;color:var(--muted);margin-top:4px;'
+              + 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:380px;">'
+              + esc(p.descripcion.substring(0, 110)) + (p.descripcion.length > 110 ? '…' : '')
+              + '</div>' : '')
+         + '</div>'
+         + '<div style="flex-shrink:0;">' + actionBtn(p) + '</div>'
+         + '</div>';
+  }).join('');
+}
+
+/* Renderizar panel completo */
+function renderPanel() {
+  var panel = document.getElementById('drill-panel');
+  if (!activeCat) { panel.style.display = 'none'; return; }
+
+  var list     = DATA[activeCat] || [];
+  var catColor = COLORS[activeCat];
+  var catLabel = LABELS[activeCat];
+  var courses  = groupByCourse(list);
+  var courseNames = Object.keys(courses);
+
+  if (!activeCourse || !courseNames.includes(activeCourse)) {
+    activeCourse = courseNames[0] || null;
+  }
+
+  var html = '<div class="card" style="border-top:3px solid ' + catColor + '; padding:20px;">';
+
+  /* Cabecera del panel */
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+  html += '<div style="font-size:15px;font-weight:800;color:var(--navy);">'
+        + '<i class="ti ti-filter" style="margin-right:6px;color:' + catColor + ';"></i>'
+        + catLabel + '</div>';
+  html += '<div style="display:flex;align-items:center;gap:10px;">';
+  html += '<span style="font-size:12px;background:' + catColor + '20;color:' + catColor
+        + ';border-radius:10px;padding:3px 12px;font-weight:700;">' + list.length + ' proyecto(s)</span>';
+  html += '<button onclick="selectCat(null)" style="background:none;border:none;cursor:pointer;'
+        + 'color:var(--muted);font-size:18px;line-height:1;padding:2px 4px;" title="Cerrar">'
+        + '<i class="ti ti-x"></i></button>';
+  html += '</div></div>';
+
+  if (!list.length) {
+    html += '<div class="alert alert-info" style="margin:0;">No hay proyectos en esta categoría.</div>';
+    html += '</div>';
+    panel.innerHTML = html;
+    panel.style.display = 'block';
+    return;
+  }
+
+  /* Botones de curso */
+  html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">';
+  courseNames.forEach(function(cn) {
+    var c        = courses[cn];
+    var isActive = (cn === activeCourse);
+    var bg       = isActive ? (c.color || catColor) : 'var(--bg)';
+    var fg       = isActive ? '#fff' : 'var(--text)';
+    var bd       = isActive ? (c.color || catColor) : 'var(--border)';
+    html += '<button class="drill-course-btn" data-course="' + esc(cn) + '" data-color="' + (c.color || catColor) + '" '
+          + 'onclick="selectCourse(\'' + escJs(cn) + '\')" '
+          + 'style="padding:7px 16px;border-radius:20px;border:2px solid ' + bd + ';background:' + bg + ';'
+          + 'color:' + fg + ';font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;">'
+          + '<i class="ti ti-book" style="margin-right:4px;"></i>' + esc(cn)
+          + '<span style="margin-left:6px;font-size:11px;opacity:.8;">(' + c.count + ')</span>'
+          + '</button>';
+  });
+  html += '</div>';
+
+  /* Filas de proyectos */
+  html += '<div id="drill-rows" style="display:flex;flex-direction:column;gap:8px;">';
+  html += activeCourse ? buildRows(activeCat, activeCourse) : '';
+  html += '</div>';
+
+  html += '</div>';
+  panel.innerHTML = html;
+  panel.style.display = 'block';
+}
+
+/* Escape para HTML */
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+/* Escape para cadenas JS en atributos onclick */
+function escJs(s) {
+  if (!s) return '';
+  return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+}
+
+})();
+</script>
 {% endblock %}

@@ -70,6 +70,7 @@
 <!-- ══ VISTA TARJETAS ══ -->
 <div id="vista-tarjetas">
   <div class="est-cards-grid" id="est-grid"></div>
+  <div id="pag-tarjetas" class="paginador"></div>
 </div>
 
 <!-- ══ VISTA TABLA ══ -->
@@ -512,7 +513,7 @@ select:focus { border-color: var(--blue); }
     document.getElementById('vista-tabla').style.display    = vista === 'tabla'    ? '' : 'none';
     document.getElementById('btn-vista-tarjetas').classList.toggle('active', vista === 'tarjetas');
     document.getElementById('btn-vista-tabla').classList.toggle('active', vista === 'tabla');
-    if (vista === 'tarjetas') renderTarjetas();
+    if (vista === 'tarjetas') renderTarjetas(pagTarjetas);
     else                      renderTabla(pagTabla);
   }
 
@@ -570,14 +571,22 @@ select:focus { border-color: var(--blue); }
   /* ════════════════════════════════════════
      RENDER TARJETAS
   ════════════════════════════════════════ */
-  function renderTarjetas() {
+  function irPagTarjetas(p) {
+    pagTarjetas = p;
+    renderTarjetas(p);
+  }
+
+  function renderTarjetas(pag) {
     var grid = document.getElementById('est-grid');
     if (!grid) return;
     var modoClass = modoEliminar ? ' modo-eliminar' : '';
     grid.className = 'est-cards-grid' + modoClass;
 
+    var inicio = pag * POR_PAGINA;
+    var pagina = ESTUDIANTES.slice(inicio, inicio + POR_PAGINA);
+
     var html = '';
-    ESTUDIANTES.forEach(function(est) {
+    pagina.forEach(function(est) {
       var initials = (est.nombre[0] || '').toUpperCase() + (est.apellido[0] || '').toUpperCase();
       var bgColor  = est.color + '20';
       html += '<div class="est-card">'
@@ -593,7 +602,7 @@ select:focus { border-color: var(--blue); }
         + '</div></div>';
     });
     grid.innerHTML = html;
-    /* sin paginador en tarjetas — scroll libre */
+    renderPaginador('pag-tarjetas', pag, ESTUDIANTES.length, 'irPagTarjetas');
   }
 
   /* ════════════════════════════════════════
@@ -651,7 +660,7 @@ select:focus { border-color: var(--blue); }
   ════════════════════════════════════════ */
   document.addEventListener('DOMContentLoaded', function() {
     if (ESTUDIANTES.length) {
-      renderTarjetas();
+      renderTarjetas(pagTarjetas);
     }
 
     /* Reabrir modal si hubo error de validación */

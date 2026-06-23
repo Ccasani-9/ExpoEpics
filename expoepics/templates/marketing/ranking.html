@@ -2,15 +2,106 @@
 {% block title %}Ranking{% endblock %}
 {% block page_title %}Ranking de Proyectos{% endblock %}
 
-{% macro render_stars(estrellas) %}
-  {% set full  = estrellas | int %}
-  {% set empty = (5 - full) | int %}
-  {% for i in range(full)  %}<span class="stars">★</span>{% endfor %}
-  {% for i in range(empty) %}<span class="stars-gray">★</span>{% endfor %}
-{% endmacro %}
-
 {% block content %}
-<div class="section-header mb-16" style="margin-bottom:20px;">
+<style>
+/* ── PODIO ── */
+.podio-wrap { margin-bottom:8px; }
+.podio {
+  display:flex; align-items:flex-end; justify-content:center;
+  gap:18px; padding:28px 10px 0; flex-wrap:wrap;
+}
+.podio-puesto {
+  display:flex; flex-direction:column; align-items:center; width:210px;
+  opacity:0; transform:translateY(18px); animation:podio-in .5s ease forwards;
+}
+.podio-puesto.oro    { order:2; animation-delay:.15s; }
+.podio-puesto.plata  { order:1; animation-delay:.35s; }
+.podio-puesto.bronce { order:3; animation-delay:.55s; }
+@keyframes podio-in { to { opacity:1; transform:translateY(0); } }
+
+.podio-medalla { font-size:42px; line-height:1; margin-bottom:6px; filter:drop-shadow(0 3px 6px rgba(0,0,0,.18)); }
+.podio-puesto.oro .podio-medalla { font-size:56px; }
+
+.podio-card {
+  background:var(--card); border:1px solid var(--border); border-radius:14px;
+  padding:14px 16px; width:100%; text-align:center; margin-bottom:0;
+  transition:box-shadow .2s, transform .15s; cursor:pointer;
+}
+.podio-card:hover { box-shadow:0 10px 28px rgba(0,0,0,.13); transform:translateY(-3px); }
+.podio-nombre { font-weight:700; font-size:14.5px; line-height:1.3; }
+.podio-meta { font-size:11.5px; color:var(--muted); margin-top:4px; }
+.podio-promedio { font-size:21px; font-weight:800; margin-top:8px; color:var(--blue); }
+.podio-stars { margin-top:2px; }
+
+.podio-empate-tag {
+  display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:700;
+  color:#b45309; background:#fffbeb; border:1px solid #fde68a; padding:2px 9px;
+  border-radius:20px; margin-bottom:8px;
+}
+.podio-empate-lista { display:flex; flex-direction:column; gap:6px; margin-top:6px; }
+.podio-empate-item {
+  font-size:12.5px; font-weight:600; padding:6px 9px; border-radius:9px;
+  background:var(--bg); border:1px solid var(--border); cursor:pointer; transition:background .15s;
+  text-align:left;
+}
+.podio-empate-item:hover { background:#eef2ff; }
+
+.podio-barra {
+  width:100%; border-radius:10px 10px 0 0; display:flex; align-items:flex-start;
+  justify-content:center; padding-top:10px; color:#fff; font-weight:800; font-size:24px;
+  height:0; transition:height .8s cubic-bezier(.2,.8,.2,1); margin-top:12px;
+}
+.podio-puesto.oro    .podio-barra { background:linear-gradient(180deg,#fbbf24,#d97706); }
+.podio-puesto.plata  .podio-barra { background:linear-gradient(180deg,#cbd5e1,#94a3b8); }
+.podio-puesto.bronce .podio-barra { background:linear-gradient(180deg,#fb923c,#c2410c); }
+.podio.grown .podio-puesto.oro    .podio-barra { height:118px; }
+.podio.grown .podio-puesto.plata  .podio-barra { height:86px; }
+.podio.grown .podio-puesto.bronce .podio-barra { height:62px; }
+
+@media (max-width:760px) {
+  .podio-puesto { width:30%; }
+  .podio-nombre { font-size:12px; }
+  .podio-meta { display:none; }
+}
+
+/* ── LISTA COMPLETA ── */
+.rl-toolbar { display:flex; gap:10px; margin:28px 0 16px; flex-wrap:wrap; }
+.rl-toolbar input, .rl-toolbar select { min-width:200px; }
+.rl-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+@media (max-width:760px) { .rl-grid { grid-template-columns:1fr; } }
+
+.rl-card {
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:14px 16px; cursor:pointer; transition:box-shadow .15s, transform .12s;
+  display:flex; gap:12px; align-items:flex-start;
+}
+.rl-card:hover { box-shadow:0 6px 18px rgba(0,0,0,.08); transform:translateY(-1px); }
+.rl-pos {
+  flex-shrink:0; width:36px; height:36px; border-radius:10px; display:flex;
+  align-items:center; justify-content:center; font-weight:800; font-size:14px;
+  background:var(--bg); color:var(--muted);
+}
+.rl-pos.top1 { background:#fef3c7; color:#92400e; }
+.rl-pos.top2 { background:#e2e8f0; color:#475569; }
+.rl-pos.top3 { background:#ffedd5; color:#9a3412; }
+.rl-pager { display:flex; justify-content:center; gap:6px; margin-top:22px; flex-wrap:wrap; }
+.rl-pager button {
+  border:1px solid var(--border); background:var(--card); border-radius:8px;
+  min-width:34px; height:34px; cursor:pointer; font-size:13px; font-weight:600; color:var(--text);
+}
+.rl-pager button.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+.rl-pager button:disabled { opacity:.4; cursor:default; }
+
+/* ── MODAL DETALLE ── */
+.md-meta { display:flex; flex-wrap:wrap; gap:14px; font-size:13px; color:var(--muted); margin-bottom:12px; }
+.md-eval-card {
+  display:flex; align-items:flex-start; gap:12px; margin-bottom:10px;
+  padding:10px 12px; background:#f8fafc; border-radius:8px; flex-wrap:wrap;
+}
+.md-doc-card { border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:10px; }
+</style>
+
+<div class="section-header mb-16" style="margin-bottom:8px;">
   <div>
     <div class="section-title">🏆 Ranking de proyectos</div>
     <div class="section-subtitle">
@@ -24,62 +115,299 @@
 </div>
 
 {% if not proyectos %}
-  <div class="alert alert-info">No hay proyectos con evaluaciones para mostrar.</div>
+  <div class="alert alert-info">No hay proyectos para mostrar.</div>
 {% else %}
-<div class="ranking-cards">
-  {% for p in proyectos %}
-  <div class="ranking-card">
-    <!-- Posición -->
-    <div class="rank-pos {% if loop.index == 1 %}gold{% elif loop.index == 2 %}silver{% elif loop.index == 3 %}bronze{% endif %}">
-      {% if loop.index == 1 %}🥇
-      {% elif loop.index == 2 %}🥈
-      {% elif loop.index == 3 %}🥉
-      {% else %}{{ loop.index }}{% endif %}
-    </div>
 
-    <!-- Info -->
-    <div class="rank-info">
-      <div class="rank-name">{{ p.nombre }}</div>
-      <div class="rank-meta">
-        <span><i class="ti ti-book" style="font-size:12px;"></i> {{ p.nombre_curso }}</span> ·
-        <span>Grupo {{ p.id_grupo }}</span> ·
-        <span>Mesa {{ p.num_mesa }}</span>
+  <!-- ══ PODIO ══ -->
+  {% if podio %}
+  <div class="podio-wrap">
+    <div class="podio" id="podio">
+      {% for g in podio %}
+      <div class="podio-puesto {% if g.posicion == 1 %}oro{% elif g.posicion == 2 %}plata{% else %}bronce{% endif %}">
+        <div class="podio-medalla">{% if g.posicion == 1 %}🥇{% elif g.posicion == 2 %}🥈{% else %}🥉{% endif %}</div>
+
+        {% if g.empate %}
+          <div class="podio-card" style="cursor:default;">
+            <span class="podio-empate-tag"><i class="ti ti-users"></i> Empate ({{ g.proyectos | length }})</span>
+            <div class="podio-empate-lista">
+              {% for p in g.proyectos %}
+                <div class="podio-empate-item" onclick="abrirDetalle({{ p.id_proyecto }})">{{ p.nombre }}</div>
+              {% endfor %}
+            </div>
+            <div class="podio-promedio">{{ "%.1f"|format(g.valor) }} <span style="font-size:12px;color:var(--muted);font-weight:500;">/ 5.0</span></div>
+          </div>
+        {% else %}
+          {% set p = g.proyectos[0] %}
+          <div class="podio-card" onclick="abrirDetalle({{ p.id_proyecto }})">
+            <div class="podio-nombre">{{ p.nombre }}</div>
+            <div class="podio-meta">{{ p.nombre_curso }} · Mesa {{ p.num_mesa }}</div>
+            <div class="podio-promedio">{{ "%.1f"|format(g.valor) }} <span style="font-size:12px;color:var(--muted);font-weight:500;">/ 5.0</span></div>
+          </div>
+        {% endif %}
+
+        <div class="podio-barra">{{ g.posicion }}</div>
       </div>
-
-      {% if p.promedio is not none %}
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-          <div>{{ render_stars(p.estrellas) }}</div>
-          <span style="font-size:13px; color:var(--muted);">
-            Promedio {{ "%.2f"|format(p.promedio) }}/5
-            · {{ p.num_evaluaciones }} evaluación(es)
-          </span>
-        </div>
-      {% else %}
-        <div class="text-muted text-sm" style="margin-bottom:6px;">Sin calificación aún</div>
-      {% endif %}
-
-      {% if p.tecnologias_usadas %}
-        <div class="tech-chips">
-          {% for t in p.tecnologias_usadas.split(',') %}
-            {% if t.strip() %}<span class="chip">{{ t.strip() }}</span>{% endif %}
-          {% endfor %}
-        </div>
-      {% endif %}
-    </div>
-
-    <!-- Promedio grande -->
-    <div style="text-align:center; min-width:60px;">
-      {% if p.promedio is not none %}
-        <div style="font-size:28px; font-weight:800; color:var(--blue);">
-          {{ "%.1f"|format(p.promedio) }}
-        </div>
-        <div class="text-muted text-sm">/ 5.0</div>
-      {% else %}
-        <div style="font-size:22px; color:var(--muted);">—</div>
-      {% endif %}
+      {% endfor %}
     </div>
   </div>
-  {% endfor %}
-</div>
+  {% endif %}
+
+  <!-- ══ LISTA COMPLETA ══ -->
+  <div class="section-header mb-16" style="margin:36px 0 0;">
+    <div>
+      <div class="section-title">Ver todos los proyectos</div>
+      <div class="section-subtitle" id="rl-contador"></div>
+    </div>
+  </div>
+
+  <div class="rl-toolbar">
+    <input type="text" id="rl-buscar" placeholder="Buscar proyecto...">
+    <select id="rl-filtro-curso">
+      <option value="">Todos los cursos</option>
+      {% for c in cursos %}<option value="{{ c.nombre }}">{{ c.nombre }}</option>{% endfor %}
+    </select>
+  </div>
+
+  <div class="rl-grid" id="rl-grid"></div>
+  <div class="rl-pager" id="rl-pager"></div>
+
 {% endif %}
+
+<!-- ══ MODAL DETALLE DE PROYECTO ══ -->
+<div class="modal-overlay" id="modal-detalle" onclick="if(event.target===this)cerrarDetalle()">
+  <div class="modal-box" style="max-width:760px;">
+    <div class="modal-header">
+      <div class="modal-title" id="md-title"></div>
+      <button class="modal-close" onclick="cerrarDetalle()">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="md-body"></div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var PROYECTOS = {{ proyectos | tojson }};
+var PODIO = {{ podio | tojson }};
+var STATIC_BASE = "{{ url_for('static', filename='') }}";
+
+/* ── Animación de las barras del podio ── */
+window.addEventListener('DOMContentLoaded', function () {
+  var podio = document.getElementById('podio');
+  if (podio) setTimeout(function () { podio.classList.add('grown'); }, 200);
+});
+
+/* ── Posición de un proyecto en el podio (si aplica) ── */
+function _posicionDe(idProyecto) {
+  for (var i = 0; i < PODIO.length; i++) {
+    var g = PODIO[i];
+    for (var j = 0; j < g.proyectos.length; j++) {
+      if (g.proyectos[j].id_proyecto === idProyecto) {
+        return { posicion: g.posicion, empate: g.empate };
+      }
+    }
+  }
+  return null;
+}
+
+function _medalla(pos) {
+  return pos === 1 ? '🥇' : pos === 2 ? '🥈' : pos === 3 ? '🥉' : '';
+}
+
+function _calBadge(cal) {
+  var map = { 'Excelente':'badge-success','Muy buena':'badge-blue','Buena':'badge-blue','Regular':'badge-warn' };
+  return '<span class="badge ' + (map[cal] || 'badge-danger') + '">' + cal + '</span>';
+}
+
+function _esc(s) {
+  return (s || '').toString()
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function _stars(promedio) {
+  if (promedio === null || promedio === undefined) return '<span class="text-muted text-sm">Sin calificación aún</span>';
+  var full = Math.round(promedio);
+  var html = '';
+  for (var i = 0; i < full; i++) html += '<span class="stars">★</span>';
+  for (var i = full; i < 5; i++) html += '<span class="stars-gray">★</span>';
+  return html;
+}
+
+/* ── Modal de detalle ── */
+function abrirDetalle(idProyecto) {
+  var p = PROYECTOS.find(function (x) { return x.id_proyecto === idProyecto; });
+  if (!p) return;
+
+  var pos = _posicionDe(idProyecto);
+  var tituloHtml = (pos ? _medalla(pos.posicion) + ' ' : '') + _esc(p.nombre);
+  if (pos && pos.empate) tituloHtml += ' <span style="font-size:11px;font-weight:700;color:#b45309;background:#fffbeb;border:1px solid #fde68a;padding:2px 8px;border-radius:20px;margin-left:6px;">Empate</span>';
+  document.getElementById('md-title').innerHTML = tituloHtml;
+
+  var html = '';
+  html += '<div class="md-meta">'
+    + '<span><i class="ti ti-book"></i> ' + _esc(p.nombre_curso) + '</span>'
+    + '<span><i class="ti ti-hash"></i> Grupo ' + p.id_grupo + '</span>'
+    + '<span><i class="ti ti-table"></i> Mesa ' + p.num_mesa + (p.ubicacion ? ' — ' + _esc(p.ubicacion) : '') + '</span>'
+    + '</div>';
+
+  if (p.descripcion) {
+    html += '<p style="font-size:13.5px; color:var(--muted); line-height:1.6; margin-bottom:10px;">' + _esc(p.descripcion) + '</p>';
+  }
+  if (p.tecnologias_usadas) {
+    html += '<div class="tech-chips" style="margin-bottom:14px;">';
+    p.tecnologias_usadas.split(',').forEach(function (t) {
+      t = t.trim();
+      if (t) html += '<span class="chip">' + _esc(t) + '</span>';
+    });
+    html += '</div>';
+  }
+
+  html += '<div style="display:flex; align-items:center; gap:12px; padding:12px 14px; background:#f8fafc; border-radius:10px; margin-bottom:18px;">';
+  if (p.promedio !== null) {
+    html += '<div style="font-size:26px; font-weight:800; color:var(--blue);">' + p.promedio.toFixed(1) + '<span style="font-size:13px; color:var(--muted); font-weight:500;"> / 5.0</span></div>'
+      + '<div>' + _stars(p.promedio) + '<div class="text-muted text-sm">' + p.num_evaluaciones + ' evaluación(es)</div></div>';
+  } else {
+    html += '<div class="text-muted text-sm">Sin calificación aún</div>';
+  }
+  html += '</div>';
+
+  // Evaluaciones de los jueces
+  html += '<div class="detail-label" style="margin-bottom:8px;">Evaluaciones de los jueces</div>';
+  if (p.evaluaciones && p.evaluaciones.length) {
+    p.evaluaciones.forEach(function (ev) {
+      html += '<div class="md-eval-card">'
+        + '<div style="flex:1; min-width:200px;">'
+        + '<span class="text-bold" style="font-size:13px;">' + _esc(ev.nombre_juez) + '</span>'
+        + '<span class="text-muted text-sm" style="margin-left:8px;">' + _esc(ev.fecha_evaluacion) + '</span>'
+        + (!ev.finalizada ? ' <span class="badge badge-warn" style="margin-left:6px;">Borrador</span>' : '')
+        + (ev.detalle ? '<p class="text-muted text-sm" style="margin-top:5px; line-height:1.5;">' + _esc(ev.detalle) + '</p>' : '')
+        + (ev.aspectos_mejora ? '<p class="text-sm" style="margin-top:4px; color:var(--warn);">💡 ' + _esc(ev.aspectos_mejora) + '</p>' : '')
+        + '</div>'
+        + _calBadge(ev.calificacion)
+        + '</div>';
+    });
+  } else {
+    html += '<div class="text-muted text-sm" style="margin-bottom:14px;">Sin evaluaciones registradas.</div>';
+  }
+
+  // Documentación
+  html += '<div class="detail-label" style="margin:16px 0 8px;">Documentación del proyecto</div>';
+  if (p.documentos && p.documentos.length) {
+    p.documentos.forEach(function (doc) {
+      var url = STATIC_BASE + doc.url_archivo;
+      var esImg = /\.(png|jpe?g)$/i.test(doc.url_archivo);
+      html += '<div class="md-doc-card">';
+      if (esImg) {
+        html += '<img src="' + url + '" alt="' + _esc(doc.nombre_original) + '" '
+          + 'style="width:100%; max-height:220px; object-fit:contain; display:block; background:#f8f9fa; cursor:pointer;" '
+          + 'onclick="window.open(this.src,\'_blank\')">';
+      }
+      html += '<div style="display:flex; align-items:center; gap:10px; padding:9px 13px; background:var(--bg);">'
+        + '<i class="ti ' + (doc.url_archivo.toLowerCase().endsWith('.pdf') ? 'ti-file-type-pdf" style="color:#e53e3e;' : 'ti-photo" style="color:#3182ce;') + 'font-size:19px; flex-shrink:0;"></i>'
+        + '<div style="flex:1; min-width:0; font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + _esc(doc.nombre_original) + '</div>'
+        + '<a href="' + url + '" target="_blank" download="' + _esc(doc.nombre_original) + '" class="btn btn-outline btn-sm" style="flex-shrink:0;"><i class="ti ti-download"></i></a>'
+        + '<a href="' + url + '" target="_blank" class="btn btn-sm" style="flex-shrink:0; border:1px solid var(--border); background:var(--bg);"><i class="ti ti-eye"></i></a>'
+        + '</div></div>';
+    });
+  } else {
+    html += '<div class="text-muted text-sm">Este proyecto no tiene documentación adjunta.</div>';
+  }
+
+  document.getElementById('md-body').innerHTML = html;
+  document.getElementById('modal-detalle').classList.add('open');
+}
+
+function cerrarDetalle() {
+  document.getElementById('modal-detalle').classList.remove('open');
+}
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') cerrarDetalle();
+});
+
+/* ── Lista completa: buscador + filtro + paginación (10 por página) ── */
+var RL_PAGE = 1;
+var RL_PER_PAGE = 10;
+
+function _rlFiltrados() {
+  var texto = (document.getElementById('rl-buscar').value || '').toLowerCase().trim();
+  var curso = document.getElementById('rl-filtro-curso').value;
+  return PROYECTOS.filter(function (p) {
+    if (curso && p.nombre_curso !== curso) return false;
+    if (texto && p.nombre.toLowerCase().indexOf(texto) === -1) return false;
+    return true;
+  });
+}
+
+function _rlPosicionGlobal(p) {
+  return PROYECTOS.indexOf(p) + 1;
+}
+
+function rlRender() {
+  var lista = _rlFiltrados();
+  var totalPaginas = Math.max(1, Math.ceil(lista.length / RL_PER_PAGE));
+  if (RL_PAGE > totalPaginas) RL_PAGE = totalPaginas;
+
+  document.getElementById('rl-contador').textContent = lista.length + ' proyecto(s) encontrado(s)';
+
+  var grid = document.getElementById('rl-grid');
+  if (!lista.length) {
+    grid.innerHTML = '<div class="alert alert-info" style="grid-column:1/-1;">No se encontraron proyectos con ese filtro.</div>';
+    document.getElementById('rl-pager').innerHTML = '';
+    return;
+  }
+
+  var inicio = (RL_PAGE - 1) * RL_PER_PAGE;
+  var pagina = lista.slice(inicio, inicio + RL_PER_PAGE);
+
+  var html = '';
+  pagina.forEach(function (p) {
+    var posGlobal = _rlPosicionGlobal(p);
+    var posClass = posGlobal === 1 ? 'top1' : posGlobal === 2 ? 'top2' : posGlobal === 3 ? 'top3' : '';
+    var posContent = posGlobal <= 3 ? _medalla(posGlobal) : posGlobal;
+    var promedioHtml = p.promedio !== null
+      ? '<span style="font-weight:700; color:var(--blue);">' + p.promedio.toFixed(1) + '</span><span class="text-muted text-sm">/5</span>'
+      : '<span class="text-muted text-sm">Sin calificar</span>';
+    html += '<div class="rl-card" onclick="abrirDetalle(' + p.id_proyecto + ')">'
+      + '<div class="rl-pos ' + posClass + '">' + posContent + '</div>'
+      + '<div style="flex:1; min-width:0;">'
+      + '<div style="font-weight:700; font-size:14px; margin-bottom:3px;">' + _esc(p.nombre) + '</div>'
+      + '<div class="text-muted text-sm" style="margin-bottom:6px;">' + _esc(p.nombre_curso) + ' · Mesa ' + p.num_mesa + '</div>'
+      + '<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">'
+      + promedioHtml
+      + '<span class="text-muted text-sm"><i class="ti ti-star"></i> ' + p.num_evaluaciones + '</span>'
+      + '<span class="text-muted text-sm"><i class="ti ti-paperclip"></i> ' + p.documentos.length + ' doc.</span>'
+      + '</div></div></div>';
+  });
+  grid.innerHTML = html;
+
+  // Paginación
+  var pager = document.getElementById('rl-pager');
+  if (totalPaginas <= 1) { pager.innerHTML = ''; return; }
+  var ph = '<button onclick="rlIrPagina(' + (RL_PAGE - 1) + ')" ' + (RL_PAGE === 1 ? 'disabled' : '') + '>‹</button>';
+  for (var i = 1; i <= totalPaginas; i++) {
+    if (totalPaginas > 7 && Math.abs(i - RL_PAGE) > 2 && i !== 1 && i !== totalPaginas) {
+      if (i === 2 || i === totalPaginas - 1) ph += '<button disabled>…</button>';
+      continue;
+    }
+    ph += '<button class="' + (i === RL_PAGE ? 'active' : '') + '" onclick="rlIrPagina(' + i + ')">' + i + '</button>';
+  }
+  ph += '<button onclick="rlIrPagina(' + (RL_PAGE + 1) + ')" ' + (RL_PAGE === totalPaginas ? 'disabled' : '') + '>›</button>';
+  pager.innerHTML = ph;
+}
+
+function rlIrPagina(n) {
+  RL_PAGE = n;
+  rlRender();
+  document.getElementById('rl-grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+var rlGridEl = document.getElementById('rl-grid');
+if (rlGridEl) {
+  document.getElementById('rl-buscar').addEventListener('input', function () { RL_PAGE = 1; rlRender(); });
+  document.getElementById('rl-filtro-curso').addEventListener('change', function () { RL_PAGE = 1; rlRender(); });
+  rlRender();
+}
+</script>
 {% endblock %}

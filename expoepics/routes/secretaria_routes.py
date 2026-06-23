@@ -6,7 +6,7 @@ from datetime import date
 from io import BytesIO
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify, send_file
 from docx import Document
-from docx.shared import Inches
+from docx.shared import Inches, Pt
 from auth import role_required
 from database import query
 
@@ -614,57 +614,14 @@ def diplomas_generar():
     id_estudiante = request.form.get('id_estudiante', type=int)
     evento = _get_evento()
     if not evento or not id_estudiante:
-        flash('Datos inválidos.', 'danger')
-        return redirect(url_for('secretaria.diplomas'))
+        return jsonify({'ok': False, 'error': 'Datos inválidos.'}), 400
 
     query(
         "UPDATE participacion SET certificado=1 "
         "WHERE id_evento=%s AND id_estudiante=%s AND asistencia=1",
         (evento['id_evento'], id_estudiante), commit=True)
 
-    return redirect(url_for('secretaria.diplomas_ver', id_estudiante=id_estudiante))
-
-
-@secretaria_bp.route('/diplomas/ver/<int:id_estudiante>')
-@role_required('secretaria')
-def diplomas_ver(id_estudiante):
-    evento = _get_evento()
-    if not evento:
-        return redirect(url_for('secretaria.diplomas'))
-
-    info = query(
-        "SELECT per.nombre, per.apellido, "
-        "       p.nombre AS nombre_proyecto, "
-        "       c.nombre AS nombre_curso "
-        "FROM participacion pa "
-        "JOIN estudiante es  ON pa.id_estudiante = es.id_estudiante "
-        "JOIN persona per    ON es.id_persona    = per.id_persona "
-        "LEFT JOIN estudiante_grupo eg ON eg.id_estudiante = es.id_estudiante "
-        "LEFT JOIN grupo g  ON eg.id_grupo = g.id_grupo AND g.id_evento = pa.id_evento "
-        "LEFT JOIN proyecto p  ON g.id_grupo = p.id_grupo "
-        "LEFT JOIN curso c     ON g.id_curso = c.id_curso "
-        "WHERE pa.id_estudiante=%s AND pa.id_evento=%s AND pa.asistencia=1 "
-        "LIMIT 1",
-        (id_estudiante, evento['id_evento']), fetch_one=True)
-
-    if not info:
-        flash('Estudiante no encontrado o no asistió.', 'danger')
-        return redirect(url_for('secretaria.diplomas'))
-
-    fecha_str = None
-    if evento.get('fecha'):
-        f = evento['fecha']
-        fecha_str = f"{f.day} de {MESES_ES[f.month - 1]} de {f.year}"
-
-    doc = query("SELECT firma FROM docente_expoepics WHERE es_director=1 LIMIT 1", fetch_one=True)
-    firma_director = doc['firma'] if doc else None
-
-    return render_template('secretaria/diploma_ver.html',
-                           info=info,
-                           evento=evento,
-                           fecha_str=fecha_str,
-                           id_estudiante=id_estudiante,
-                           firma_director=firma_director)
+    return jsonify({'ok': True})
 
 
 @secretaria_bp.route('/diplomas/descargar/<int:id_estudiante>')
@@ -729,20 +686,27 @@ def diplomas_descargar(id_estudiante):
 
     if not os.path.exists(template_path):
         flash('No se encontró la plantilla Diploma_ExpoEpics.docx.', 'danger')
-        return redirect(url_for('secretaria.diplomas_ver', id_estudiante=id_estudiante))
+        return redirect(url_for('secretaria.diplomas'))
 
     doc = Document(template_path)
 
     def _reemplazar_parrafo(para):
+        firma_en_parrafo = False
         for run in para.runs:
             for k, v in reemplazos.items():
                 if f'{{{k}}}' in run.text:
                     run.text = run.text.replace(f'{{{k}}}', v)
             if '{FIRMA}' in run.text:
                 run.text = ''
+                run.font.size = Pt(1)  # evita que el tamaño original infle la línea
                 if firma_buf:
                     firma_buf.seek(0)
                     run.add_picture(firma_buf, height=Inches(0.9))
+                firma_en_parrafo = True
+        if firma_en_parrafo:
+            # Elimina el espacio extra del párrafo que aleja la firma del texto adyacente
+            para.paragraph_format.space_before = Pt(0)
+            para.paragraph_format.space_after = Pt(0)
 
     for para in doc.paragraphs:
         _reemplazar_parrafo(para)
@@ -766,6 +730,63 @@ def diplomas_descargar(id_estudiante):
         download_name=nombre_archivo,
         mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     )
+
+
+@secretaria_bp.route('/proyectos-expoepics')
+@role_required('secretaria')
+def proyectos_expoepics():
+    evento = _get_evento()
+    if not evento:
+        return render_template('secretaria/proyectos.html', proyectos=[], cursos=[], evento=None)
+
+    filtro_curso  = request.args.get('curso',  '', type=str).strip()
+    filtro_estado = request.args.get('estado', '', type=str).strip()
+
+    sql = (
+        "SELECT p.id_proyecto, p.nombre AS nombre_proyecto, p.descripcion, "
+        "p.tecnologias_usadas, p.descripcion_tecnologia, p.estado, "
+        "c.nombre AS nombre_curso, c.color, "
+        "e.num_mesa, e.ubicacion, "
+        "g.id_grupo "
+        "FROM proyecto p "
+        "JOIN grupo g ON p.id_grupo = g.id_grupo "
+        "JOIN curso c ON g.id_curso = c.id_curso "
+        "JOIN espacio e ON g.id_espacio = e.id_espacio "
+        "WHERE g.id_evento = %s"
+    )
+    params = [evento['id_evento']]
+    if filtro_curso:
+        sql += " AND c.nombre = %s"
+        params.append(filtro_curso)
+    if filtro_estado:
+        sql += " AND p.estado = %s"
+        params.append(filtro_estado)
+    sql += " ORDER BY c.nombre, e.num_mesa"
+
+    proyectos_raw = query(sql, params) or []
+
+    proyectos = []
+    for p in proyectos_raw:
+        docs = query(
+            "SELECT * FROM proyecto_documento WHERE id_proyecto=%s ORDER BY fecha_subida",
+            (p['id_proyecto'],)) or []
+        pdict = dict(p)
+        pdict['documentos'] = docs
+        proyectos.append(pdict)
+
+    cursos = query(
+        "SELECT DISTINCT c.nombre, c.color FROM curso c "
+        "JOIN grupo g ON c.id_curso = g.id_curso "
+        "WHERE g.id_evento = %s ORDER BY c.nombre",
+        (evento['id_evento'],)
+    ) or []
+
+    return render_template('secretaria/proyectos.html',
+                           proyectos=proyectos,
+                           cursos=cursos,
+                           evento=evento,
+                           filtro_curso=filtro_curso,
+                           filtro_estado=filtro_estado)
 
 
 @secretaria_bp.route('/cuenta', methods=['GET', 'POST'])

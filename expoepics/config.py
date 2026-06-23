@@ -5,5 +5,5 @@ class Config:
     DB_HOST     = os.environ.get('DB_HOST',     'localhost')
     DB_USER     = os.environ.get('DB_USER',     'root')
     DB_PASSWORD = os.environ.get('DB_PASSWORD', 'FiaTdbd20261@')
-    DB_NAME     = os.environ.get('DB_NAME',     'semana15')
+    DB_NAME     = os.environ.get('DB_NAME',     'proyecto_expoepics')
     DB_PORT     = int(os.environ.get('DB_PORT') or 3306)

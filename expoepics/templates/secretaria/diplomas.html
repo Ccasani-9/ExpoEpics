@@ -100,21 +100,19 @@ function renderEstudiantes(c) {
   c.estudiantes.forEach(function(e, i) {
     var bg = i % 2 === 0 ? '' : 'background:var(--bg-secondary);';
     var estadoBadge = e.certificado
-      ? '<span class="badge badge-green"><i class="ti ti-check"></i> Generado</span>'
+      ? '<span class="badge badge-green"><i class="ti ti-check"></i> Finalizado</span>'
       : '<span class="badge badge-gray">Pendiente</span>';
     var accionBtn = e.certificado
-      ? '<a href="/secretaria/diplomas/ver/' + e.id_estudiante + '" class="btn btn-outline btn-sm" target="_blank">' +
-          '<i class="ti ti-eye"></i> Ver</a>'
-      : '<form method="POST" action="/secretaria/diplomas/generar" style="display:inline;">' +
-          '<input type="hidden" name="id_estudiante" value="' + e.id_estudiante + '">' +
-          '<button type="submit" class="btn btn-primary btn-sm">' +
-            '<i class="ti ti-certificate"></i> Generar</button></form>';
+      ? '<a href="/secretaria/diplomas/descargar/' + e.id_estudiante + '" class="btn btn-outline btn-sm">' +
+          '<i class="ti ti-download"></i> Descargar</a>'
+      : '<button type="button" class="btn btn-primary btn-sm" onclick="generarDiploma(' + e.id_estudiante + ', this)">' +
+          '<i class="ti ti-certificate"></i> Generar</button>';
 
-    html += '<tr style="' + bg + '">' +
+    html += '<tr style="' + bg + '" id="fila-est-' + e.id_estudiante + '">' +
       '<td style="padding:12px 16px;font-weight:500;">' + e.apellido + ', ' + e.nombre + '</td>' +
       '<td style="padding:12px 16px;color:var(--text-secondary);">' + e.dni + '</td>' +
-      '<td style="padding:12px 16px;text-align:center;">' + estadoBadge + '</td>' +
-      '<td style="padding:12px 16px;text-align:center;">' + accionBtn + '</td>' +
+      '<td style="padding:12px 16px;text-align:center;" class="celda-estado">' + estadoBadge + '</td>' +
+      '<td style="padding:12px 16px;text-align:center;" class="celda-accion">' + accionBtn + '</td>' +
       '</tr>';
   });
   html += '</tbody></table>';
@@ -125,6 +123,50 @@ function renderEstudiantes(c) {
 function volverCursos() {
   document.getElementById('vista-estudiantes').style.display = 'none';
   document.getElementById('vista-cursos').style.display = '';
+}
+
+function generarDiploma(idEstudiante, btnEl) {
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = '<i class="ti ti-loader-2"></i> Generando...'; }
+
+  var formData = new URLSearchParams();
+  formData.append('id_estudiante', idEstudiante);
+
+  fetch('/secretaria/diplomas/generar', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.ok) {
+        alert(d.error || 'No se pudo generar el diploma.');
+        if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '<i class="ti ti-certificate"></i> Generar'; }
+        return;
+      }
+
+      // Actualizar el estado en memoria (curso actual y lista global de cursos)
+      var est = cursoActual.estudiantes.find(function(e) { return e.id_estudiante === idEstudiante; });
+      if (est) est.certificado = true;
+
+      // Repintar la fila de la tabla
+      var fila = document.getElementById('fila-est-' + idEstudiante);
+      if (fila) {
+        fila.querySelector('.celda-estado').innerHTML =
+          '<span class="badge badge-green"><i class="ti ti-check"></i> Finalizado</span>';
+        fila.querySelector('.celda-accion').innerHTML =
+          '<a href="/secretaria/diplomas/descargar/' + idEstudiante + '" class="btn btn-outline btn-sm">' +
+            '<i class="ti ti-download"></i> Descargar</a>';
+      }
+
+      // Actualizar contador del curso actual y la tarjeta correspondiente en la vista de cursos
+      var conDiploma = cursoActual.estudiantes.filter(function(e){ return e.certificado; }).length;
+      document.getElementById('curso-sub').textContent =
+        cursoActual.estudiantes.length + ' asistentes · ' + conDiploma + ' diplomas generados';
+      renderCursos();
+
+      // Disparar la descarga del diploma sin navegar fuera de la página
+      window.location.href = '/secretaria/diplomas/descargar/' + idEstudiante;
+    })
+    .catch(function() {
+      alert('Error de conexión al generar el diploma.');
+      if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '<i class="ti ti-certificate"></i> Generar'; }
+    });
 }
 
 renderCursos();

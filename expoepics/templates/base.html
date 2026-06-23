@@ -91,6 +91,10 @@
            class="nav-item {% if 'complemento' in (request.endpoint or '') %}active{% endif %}">
           <i class="ti ti-gift"></i> Complementos
         </a>
+        <a href="{{ url_for('secretaria.proyectos_expoepics') }}"
+           class="nav-item {% if request.endpoint == 'secretaria.proyectos_expoepics' %}active{% endif %}">
+          <i class="ti ti-folder"></i> Proyectos ExpoEpics
+        </a>
         <a href="{{ url_for('secretaria.ajustes') }}"
            class="nav-item {% if request.endpoint == 'secretaria.ajustes' %}active{% endif %}">
           <i class="ti ti-settings"></i> Ajustes ExpoEpics

@@ -45,11 +45,6 @@
     <i class="ti ti-info-circle"></i>
     Solo el <strong>líder del grupo</strong> puede editar el proyecto.
   </div>
-{% elif dias_restantes is not none and dias_restantes <= 3 %}
-  <div class="alert alert-danger">
-    <i class="ti ti-lock"></i>
-    <strong>El plazo de edición cerró.</strong> Faltan menos de 3 días para la ExpoEpics.
-  </div>
 {% elif es_lider %}
   <div class="alert alert-success" style="margin-bottom:16px;">
     <i class="ti ti-pencil"></i> Eres el <strong>líder del grupo</strong>. Puedes editar el proyecto.

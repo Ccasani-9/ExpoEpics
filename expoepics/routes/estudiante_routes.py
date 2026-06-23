@@ -105,11 +105,9 @@ def proyecto():
 
     es_lider = (eg['id_lider'] == id_est)
     dias_restantes = None
-    puede_editar   = False
     if evento:
-        hoy = date.today()
-        dias_restantes = (evento['fecha'] - hoy).days
-        puede_editar   = es_lider and dias_restantes > 3
+        dias_restantes = (evento['fecha'] - date.today()).days
+    puede_editar = es_lider
 
     tecnologias = [t.strip() for t in (proy['tecnologias_usadas'] or '').split(',') if t.strip()] if proy else []
 
@@ -135,11 +133,7 @@ def editar_proyecto():
         flash('Solo el líder del grupo puede editar el proyecto.', 'danger')
         return redirect(url_for('estudiante.proyecto'))
 
-    hoy = date.today()
-    dias_restantes = (evento['fecha'] - hoy).days if evento else 999
-    if dias_restantes <= 3:
-        flash('El plazo de edición cerró. Faltan menos de 3 días para la ExpoEpics.', 'danger')
-        return redirect(url_for('estudiante.proyecto'))
+    dias_restantes = (evento['fecha'] - date.today()).days if evento else None
 
     proy = query("SELECT * FROM proyecto WHERE id_grupo=%s", (eg['id_grupo'],), fetch_one=True)
     if not proy:

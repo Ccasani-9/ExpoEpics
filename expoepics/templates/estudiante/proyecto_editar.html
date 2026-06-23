@@ -13,15 +13,9 @@
     </div>
 
     {% if dias_restantes is not none %}
-      {% if dias_restantes > 3 %}
-        <div class="alert alert-success">
-          <i class="ti ti-calendar"></i> El evento es en <strong>{{ dias_restantes }} días</strong>. Tienes tiempo para editar.
-        </div>
-      {% else %}
-        <div class="alert alert-danger">
-          <i class="ti ti-lock"></i> El plazo de edición cerró. Faltan {{ dias_restantes }} día(s).
-        </div>
-      {% endif %}
+      <div class="alert alert-success">
+        <i class="ti ti-calendar"></i> El evento es en <strong>{{ dias_restantes }} día(s)</strong>.
+      </div>
     {% endif %}
 
     {% if error %}
